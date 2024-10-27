@@ -197,6 +197,7 @@ google-services.json
 
 # Database
 db_data
+es_data
 
 # Data
 *.csv
