@@ -89,7 +89,7 @@ def analyze_diet(prompt_type, user_data):
     try:
         prompt_file = os.path.join(PROMPT_PATH, f"{prompt_type}.txt")
         prompt = read_prompt(prompt_file)
-        df = pd.read_csv(DATA_PATH, encoding='cp949')
+        df = pd.read_csv(os.path.join(DATA_PATH, "analysis_diet.csv"), encoding='cp949')
         weight_change = weight_predict(user_data)
         
         # 프롬프트 변수 설정

@@ -49,7 +49,7 @@ Base64 인코딩된 이미지 데이터 불러오는 fixture
 @pytest.fixture
 def load_base64_data():
     # 테스트 진행을 위한 base64 인코딩이 존재하는 파일 설정
-    with open("./test/img.txt", "r") as file:
+    with open("./test/부대찌개_1622_768.txt", "r") as file:
         return file.read().strip()
 
 def test_food_image_analysis(load_base64_data):
