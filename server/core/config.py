@@ -18,17 +18,34 @@ load_dotenv(dotenv_path=env_file)
 
 class Settings:
 
+    # 인증
+    JWT_SECRET = os.getenv("JWT_SECRET")
+    TEST_TOKEN = os.getenv("TEST_TOKEN")
+
+    # Swagger
+    ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
+    # MariaDB
     RDS_DATABASE_ENDPOINT = os.getenv("RDS_DATABASE_ENDPOINT")
     RDS_DATABASE_USERNAME = os.getenv("RDS_DATABASE_USERNAME")
     RDS_DATABASE_PASSWORD = os.getenv("RDS_DATABASE_PASSWORD")
     RDS_PORT = os.getenv("RDS_PORT")
     RDS_DB_NAME = os.getenv("RDS_DB_NAME")
-    JWT_SECRET = os.getenv("JWT_SECRET")
-    ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
-    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
-    TEST_TOKEN = os.getenv("TEST_TOKEN")
-
     DB_URL=f"mysql+pymysql://{RDS_DATABASE_USERNAME}:{RDS_DATABASE_PASSWORD}@{RDS_DATABASE_ENDPOINT}:{RDS_PORT}/{RDS_DB_NAME}?charset=utf8mb4"
+
+    # Elasticsearch
+    ELASTICSEARCH_HOST=os.getenv("ELASTICSEARCH_HOST")
+    ELASTICSEARCH_PORT=os.getenv("ELASTICSEARCH_PORT")
+    ELASTICSEARCH_USERNAME=os.getenv("ELASTICSEARCH_USERNAME")
+    ELASTICSEARCH_PASSWORD=os.getenv("ELASTICSEARCH_PASSWORD")
+    ELASTICSEARCH_JAVA_OPTS=os.getenv("ELASTICSEARCH_JAVA_OPTS")
+
+    # Redis
+    REDIS_HOST=os.getenv("REDIS_HOST")
+    REDIS_PORT=os.getenv("REDIS_PORT")
+    REDIS_PASSWORD=os.getenv("REDIS_PASSWORD")
+    
     
 settings = Settings()
 

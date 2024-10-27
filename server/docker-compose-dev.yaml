@@ -13,3 +13,26 @@ services:
     volumes:
       - ./db_data:/var/lib/mysql
       - ./init/schema.sql:/docker-entrypoint-initdb.d/schema.sql  
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
+    container_name: local-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m  
+      - ELASTIC_USERNAME=gaebaljip-local
+      - ELASTIC_PASSWORD=gaebaljip-local
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./es_data:/usr/share/elasticsearch/data
+
+  redis:
+    image: redis:6.2
+    container_name: local-redis
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_PASSWORD=gaebaljip-local
+    volumes:
+      - ./redis_data:/data
