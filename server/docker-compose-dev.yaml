@@ -12,7 +12,7 @@ services:
       - MYSQL_PASSWORD=gaebaljip-local
     volumes:
       - ./db_data:/var/lib/mysql
-      - ./init/schema.sql:/docker-entrypoint-initdb.d/schema.sql  
+      - ./init/schema.sql:/docker-entrypoint-initdb.d/schema.sql 
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
