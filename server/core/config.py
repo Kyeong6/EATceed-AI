@@ -26,6 +26,10 @@ class Settings:
     ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
     ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
+    # Data
+    DATA_PATH = os.getenv("DATA_PATH")
+    PROMT_PATH = os.getenv("PROMT_PATH")
+
     # MariaDB
     RDS_DATABASE_ENDPOINT = os.getenv("RDS_DATABASE_ENDPOINT")
     RDS_DATABASE_USERNAME = os.getenv("RDS_DATABASE_USERNAME")
@@ -36,14 +40,11 @@ class Settings:
 
     # Elasticsearch
     ELASTICSEARCH_HOST=os.getenv("ELASTICSEARCH_HOST")
-    ELASTICSEARCH_PORT=os.getenv("ELASTICSEARCH_PORT")
     ELASTICSEARCH_USERNAME=os.getenv("ELASTICSEARCH_USERNAME")
     ELASTICSEARCH_PASSWORD=os.getenv("ELASTICSEARCH_PASSWORD")
-    ELASTICSEARCH_JAVA_OPTS=os.getenv("ELASTICSEARCH_JAVA_OPTS")
 
     # Redis
     REDIS_HOST=os.getenv("REDIS_HOST")
-    REDIS_PORT=os.getenv("REDIS_PORT")
     REDIS_PASSWORD=os.getenv("REDIS_PASSWORD")
     
     
