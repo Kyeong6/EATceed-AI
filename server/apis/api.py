@@ -1,14 +1,15 @@
 # 메인 로직 작성
-from openai import OpenAI
 import os
 import logging
 import pandas as pd
+from core.config import settings
 from sqlalchemy.orm import Session
 from db.database import get_db
 from db.crud import create_eat_habits, get_user_data, update_flag, get_all_member_id
 from apscheduler.schedulers.background import BackgroundScheduler
 from errors.custom_exceptions import UserDataError, AnalysisError
-
+from openai import OpenAI
+from elasticsearch import Elasticsearch
 from langchain.agents.agent_types import AgentType
 from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
 from langchain_openai import ChatOpenAI
@@ -23,6 +24,11 @@ logger = logging.getLogger(__name__)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DATA_PATH = os.getenv("DATA_PATH")
 PROMPT_PATH = os.getenv("PROMPT_PATH")
+
+# Elasticsearch 클라이언트 설정
+es = Elasticsearch(
+    settings.ELASTICSEARCH_HOST, 
+    basic_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD))
 
 # prompt를 불러오기
 def read_prompt(filename):
@@ -231,3 +237,30 @@ def food_image_analyze(image_base64: str):
     result = response.choices[0].message.content
 
     return result
+
+
+# 음식명 유사도 분석 결과 반환
+def search_similar_food(category_code, query_name):
+    
+    # 인덱스 이름 설정
+    index_name = "food_names"
+
+    # 제공받은 category_code 범위 내에서 음식명 유사도 분석 진행
+    response = es.search(
+        index=index_name,
+        body={
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"food_category_code": category_code}},
+                        {"match": {"food_name": query_name}}
+                    ]
+                }
+            }
+        },
+        size=1
+    )
+    
+    # 음식명만 추출
+    return [hit["_source"]["food_name"] for hit in response['hits']['hits']]
+
