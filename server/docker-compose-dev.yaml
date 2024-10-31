@@ -47,6 +47,19 @@ services:
       - ./redis_data:/data
 
 
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.9
+    container_name: local-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://local-elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=gaebaljip-local
+      - ELASTICSEARCH_PASSWORD=gaebaljip-local
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
+
   # fastapi_app:
   #   build:
   #     context: .
