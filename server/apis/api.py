@@ -2,6 +2,7 @@
 import os
 import logging
 import pandas as pd
+import numpy as np
 from core.config import settings
 from sqlalchemy.orm import Session
 from db.database import get_db
@@ -242,37 +243,51 @@ def food_image_analyze(image_base64: str):
         raise AnalysisError("OpenAI API 호출 중 오류 발생")
 
 
+# 제공받은 음식의 벡터 임베딩 값 변환 작업 수행
+def get_embedding(text, model="text-embedding-3-small"):
+    text = text.replace("\n", " ")
+    embedding = client.embeddings.create(input=[text], model=model).data[0].embedding
+    return embedding
+
+
+# 벡터 임베딩을 통한 유사도 분석 진행
 def search_similar_food(query_name):
     try:
         index_name = "food_names"
-        
-        # Elasticsearch 유사도 검색
+
+        # OpenAI API를 사용하여 임베딩 생성
+        query_vector = get_embedding(query_name)
+
+        # Elasticsearch 벡터 유사도 검색
         response = es.search(
             index=index_name,
             body={
                 "query": {
-                    "bool": {
-                        "should": [
-                            {"match": {"food_name": {"query": query_name, "fuzziness": "AUTO"}}},
-                            {"match_phrase_prefix": {"food_name": query_name}}
-                        ],
-                        "minimum_should_match": 1
+                    "script_score": {
+                        "query": {"match_all": {}},
+                        "script": {
+                            # 코사인 유사도 진행
+                            "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
+                            "params": {"query_vector": query_vector}
+                        }
                     }
-                }
-            },
-            size=3
+                },
+                # 상위 3개의 유사한 결과 반환
+                "size": 3  
+            }
         )
-        
-        # 검색 결과 가져오기
+
+        # 검색 결과: food_name, food_pk 추출
         hits = response.get('hits', {}).get('hits', [])
         
-        # 검색 결과가 있을 경우 food_name만 추출
-        result = [{"food_name": hit["_source"]["food_name"]} for hit in hits] if hits else [{"food_name": "비슷한 결과 없음"}]
-        
-        # 디버그 출력으로 결과 확인
+        # 검색 결과가 있을 경우 food_name과 food_pk 추출, 없을 경우 null로 설정: AOS와 논의 필요
+        result = [{"food_name": hit["_source"]["food_name"], "food_pk": hit["_source"]["food_pk"]} for hit in hits] if hits else [{"food_name": None, "food_pk": None}]
+
+        # 결과 확인
         print("Search result:", result)
         
-        return result[:3]  # 최대 3개의 결과만 반환
+        # 최대 3개의 결과 반환 또는 null
+        return result  
 
     except Exception as e:
         raise AnalysisError(f"유사도 분석 중 오류 발생: {str(e)}")

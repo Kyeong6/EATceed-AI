@@ -26,6 +26,9 @@ class Settings:
     ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
     ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
+    # OpenAI
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
     # Data
     DATA_PATH = os.getenv("DATA_PATH")
     DOCKER_DATA_PATH = os.getenv("DOCKER_DATA_PATH")
