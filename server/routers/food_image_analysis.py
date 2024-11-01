@@ -1,11 +1,12 @@
-import base64
+import json
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, HttpUrl, ValidationError
-from apis.api import food_image_analyze
+from pydantic import BaseModel, ValidationError
+from apis.api import food_image_analyze, search_similar_food
 from auth.decoded_token import get_current_member
 from db.database import get_db
-from errors.custom_exceptions import InvalidJWT
+from db.crud import get_food_pk_by_name
+from errors.custom_exceptions import InvalidJWT, AnalysisError
 
 router = APIRouter(
     prefix="/v1/ai/food_image_analysis",
@@ -26,7 +27,7 @@ class ImageAnalysisRequest(BaseModel):
 
 # 음식 이미지 분석 API
 @router.post("/")
-async def anlyze_food_image(request: ImageAnalysisRequest,
+async def analyze_food_image(request: ImageAnalysisRequest,
                             db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
     
     # 인증 확인
@@ -35,24 +36,59 @@ async def anlyze_food_image(request: ImageAnalysisRequest,
     
     """
     1. 요청 횟수 제한 구현(Redis)
-    추가적인 기능(함수) 작성 필요 : api.py
     """
-
-    # OpenAI API로 Base64 인코딩된 이미지 전송
-    try:
-        result = food_image_analyze(request.image_base64)
-    except ValidationError as e:
-        return {"error": f"Invalid Base64 format: {e}"}
 
     """
     2. food_image_analyze 함수를 통해 얻은 음식명(리스트 값)을 이용해 
     Elasticsearch 유사도 검색을 진행해 유사도가 높은 음식(들) 반환 진행
-    추가적인 기능(함수) 작성 필요 : api.py
     """
 
+    # OpenAI API를 이용한 이미지 분석: 음식명 결과 얻기
+    try:
+        # OpenAI API 호출로 이미지 분석 및 음식명 추출
+        detected_food_data = food_image_analyze(request.image_base64)
+        # 문자열로 반환된 데이터 JSON으로 변환
+        detected_food_data = json.loads(detected_food_data)
 
-    return {
-        "success": True, 
-        "response": result,
-        "error": None
-    }
+        # 음식명 분석 결과가 없을 경우
+        if not detected_food_data:
+            raise AnalysisError("음식 분석 결과가 비어있습니다.")
+        
+    except json.JSONDecodeError:
+        raise AnalysisError("이미지 분석 결과의 형식이 잘못되었습니다.")
+    except ValidationError as e:
+        raise AnalysisError(f"이미지 분석 중 오류 발생: {str(e)}")
+
+    # 유사도 검색 결과 저장할 리스트 초기화
+    similar_food_results = []
+
+    # 유사도 검색 진행
+    for food_data in detected_food_data:
+        # 데이터 형식 확인 후 인덱싱 접근
+        food_name = food_data["food_name"] if isinstance(food_data, dict) else None
+
+        # 음식명 또는 코드 누락
+        if not food_name:
+            raise AnalysisError("음식명 데이터가 누락되었습니다.")
+        
+        try:
+            # 벡터 임베딩 기반 유사도 검색 진행
+            similar_foods = search_similar_food(food_name)
+            similar_food_list = [{"food_name": food["food_name"], "food_pk": food["food_pk"]} for food in similar_foods]
+
+            # 반환값 구성
+            similar_food_results.append({
+                "detected_food": food_name,
+                "similar_foods": similar_food_list
+            })
+
+        except Exception as e:
+            raise AnalysisError(f"유사도 분석 중 오류 발생: {str(e)}")
+        
+    response = {
+                "success": True,
+                "response": similar_food_results,
+                "error": None
+                }
+
+    return response

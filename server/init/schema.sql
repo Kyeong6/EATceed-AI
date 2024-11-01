@@ -20,23 +20,24 @@ CREATE TABLE MEMBER_TB
     PRIMARY KEY (MEMBER_PK)
 ) ENGINE=InnoDB;
 
-CREATE TABLE FOOD_TB
+CREATE TABLE FOOD_TB 
 (
     FOOD_PK            bigint(20)   NOT NULL AUTO_INCREMENT,
-    FOOD_CALORIE       double       NOT NULL,
-    FOOD_CARBOHYDRATE  double       NOT NULL,
-    FOOD_FAT           double       NOT NULL,
-    FOOD_NAME          varchar(255) NOT NULL,
-    FOOD_PROTEIN       double       NOT NULL,
-    FOOD_SERVING_SIZE  double       NOT NULL,
-    FOOD_SUGARS        double       NOT NULL,
-    FOOD_DIETARY_FIBER double       NOT NULL,
-    FOOD_SODIUM        double       NOT NULL,
-    MEMBER_FK          bigint(20) DEFAULT NULL,
+    FOOD_CODE          bigint(20)   NOT NULL,
+    FOOD_NAME          varchar(255)  NOT NULL,
+    FOOD_CATEGORY_CODE  tinyint      NOT NULL,
+    FOOD_SERVING_SIZE  double        NOT NULL,
+    FOOD_CALORIE       double        NOT NULL,
+    FOOD_CARBOHYDRATE  double        NOT NULL,
+    FOOD_PROTEIN       double        NOT NULL,
+    FOOD_FAT           double        NOT NULL,
+    FOOD_SUGARS        double        NOT NULL,
+    FOOD_DIETARY_FIBER double        NOT NULL,
+    FOOD_SODIUM        double        NOT NULL,
+    MEMBER_FK          bigint(20)    DEFAULT NULL,
     PRIMARY KEY (FOOD_PK),
     FOREIGN KEY (MEMBER_FK) REFERENCES MEMBER_TB (MEMBER_PK)
 ) ENGINE=InnoDB;
-
 
 CREATE TABLE MEAL_TB
 (

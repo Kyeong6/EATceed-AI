@@ -314,3 +314,15 @@ def get_user_data(db: Session, member_id: int):
     #     logger.error(f"Error fetching user data: {e}")
     #     raise UserDataError("")
 
+
+# 음식 분석: 음식명에 따른 pk값 조회
+def get_food_pk_by_name(db: Session, food_names: list):
+    food_pks = {}
+    for name in food_names:
+        # FOOD_TB에서 정확하게 일치하는 음식 조회
+        food = db.query(Food).filter(Food.FOOD_NAME.ilike(name)).first()
+        if food:
+            food_pks[name] = food.FOOD_PK
+        else:
+            food_pks[name] = None
+    return food_pks
