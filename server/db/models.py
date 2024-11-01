@@ -31,6 +31,7 @@ class Member(Base):
     meals = relationship("Meal", back_populates="member")
     eat_habits = relationship("EatHabits", back_populates="member")
     histories = relationship("History", back_populates="member")
+    notifications = relationship("Notify", back_populates="member")
 
 # FOOD_TB 구성
 class Food(Base):

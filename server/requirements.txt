@@ -66,3 +66,5 @@ langchain-experimental==0.0.62
 langchain-openai==0.1.19
 langchain-text-splitters==0.2.2
 langsmith==0.1.85
+elasticsearch==8.15.1
+pytest==8.3.3

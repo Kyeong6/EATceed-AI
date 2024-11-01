@@ -1,14 +1,16 @@
 # 메인 로직 작성
-from openai import OpenAI
 import os
 import logging
 import pandas as pd
+import numpy as np
+from core.config import settings
 from sqlalchemy.orm import Session
 from db.database import get_db
 from db.crud import create_eat_habits, get_user_data, update_flag, get_all_member_id
 from apscheduler.schedulers.background import BackgroundScheduler
 from errors.custom_exceptions import UserDataError, AnalysisError
-
+from openai import OpenAI
+from elasticsearch import Elasticsearch
 from langchain.agents.agent_types import AgentType
 from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
 from langchain_openai import ChatOpenAI
@@ -23,6 +25,11 @@ logger = logging.getLogger(__name__)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DATA_PATH = os.getenv("DATA_PATH")
 PROMPT_PATH = os.getenv("PROMPT_PATH")
+
+# Elasticsearch 클라이언트 설정
+es = Elasticsearch(
+    settings.ELASTICSEARCH_LOCAL_HOST, 
+    http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD))
 
 # prompt를 불러오기
 def read_prompt(filename):
@@ -201,33 +208,86 @@ scheduler.start()
 # 음식 이미지 분석 API: prompt_type은 함수명과 동일
 def food_image_analyze(image_base64: str):
 
-    # prompt 타입 설정
-    prompt_file = os.path.join(PROMPT_PATH, "food_image_analyze.txt")
-    prompt = read_prompt(prompt_file)
+    try:
+        # prompt 타입 설정
+        prompt_file = os.path.join(PROMPT_PATH, "food_image_analyze.txt")
+        prompt = read_prompt(prompt_file)
 
-    # OpenAI API 호출
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": prompt},
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{image_base64}"
-                            # 검증 필요
-                            # "detail": "high"
+        # OpenAI API 호출
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": prompt},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_base64}"
+                                # 검증 필요
+                                # "detail": "high"
+                            }
+                        }
+                    ]
+                }
+            ],
+            temperature=0.0,
+            max_tokens=300
+        )
+        
+        result = response.choices[0].message.content
+
+        return result
+    except Exception as e:
+        raise AnalysisError("OpenAI API 호출 중 오류 발생")
+
+
+# 제공받은 음식의 벡터 임베딩 값 변환 작업 수행
+def get_embedding(text, model="text-embedding-3-small"):
+    text = text.replace("\n", " ")
+    embedding = client.embeddings.create(input=[text], model=model).data[0].embedding
+    return embedding
+
+
+# 벡터 임베딩을 통한 유사도 분석 진행
+def search_similar_food(query_name):
+    try:
+        index_name = "food_names"
+
+        # OpenAI API를 사용하여 임베딩 생성
+        query_vector = get_embedding(query_name)
+
+        # Elasticsearch 벡터 유사도 검색
+        response = es.search(
+            index=index_name,
+            body={
+                "query": {
+                    "script_score": {
+                        "query": {"match_all": {}},
+                        "script": {
+                            # 코사인 유사도 진행
+                            "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
+                            "params": {"query_vector": query_vector}
                         }
                     }
-                ]
+                },
+                # 상위 3개의 유사한 결과 반환
+                "size": 3  
             }
-        ],
-        temperature=0.0,
-        max_tokens=300
-    )
-    
-    result = response.choices[0].message.content
+        )
 
-    return result
+        # 검색 결과: food_name, food_pk 추출
+        hits = response.get('hits', {}).get('hits', [])
+        
+        # 검색 결과가 있을 경우 food_name과 food_pk 추출, 없을 경우 null로 설정: AOS와 논의 필요
+        result = [{"food_name": hit["_source"]["food_name"], "food_pk": hit["_source"]["food_pk"]} for hit in hits] if hits else [{"food_name": None, "food_pk": None}]
+
+        # 결과 확인
+        print("Search result:", result)
+        
+        # 최대 3개의 결과 반환 또는 null
+        return result  
+
+    except Exception as e:
+        raise AnalysisError(f"유사도 분석 중 오류 발생: {str(e)}")
