@@ -258,9 +258,13 @@ def search_similar_food(category_code, query_name):
                 }
             }
         },
-        size=1
+        # 상위 3개 음식명 반환
+        size=3
     )
     
     # 음식명만 추출
-    return [hit["_source"]["food_name"] for hit in response['hits']['hits']]
+    # [hit["_source"]["food_name"] for hit in response['hits']['hits']]
+    result = list(hit["_source"]["food_name"] for hit in response['hits']['hits'])
+    
+    return result
 
