@@ -28,6 +28,7 @@ class Settings:
 
     # Data
     DATA_PATH = os.getenv("DATA_PATH")
+    DOCKER_DATA_PATH = os.getenv("DOCKER_DATA_PATH")
     PROMT_PATH = os.getenv("PROMT_PATH")
 
     # MariaDB
@@ -40,6 +41,7 @@ class Settings:
 
     # Elasticsearch
     ELASTICSEARCH_HOST=os.getenv("ELASTICSEARCH_HOST")
+    ELASTICSEARCH_LOCAL_HOST =os.getenv("ELASTICSEARCH_LOCAL_HOST")
     ELASTICSEARCH_USERNAME=os.getenv("ELASTICSEARCH_USERNAME")
     ELASTICSEARCH_PASSWORD=os.getenv("ELASTICSEARCH_PASSWORD")
 

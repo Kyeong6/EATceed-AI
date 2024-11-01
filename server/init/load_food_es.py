@@ -16,43 +16,27 @@ index_name = "food_names"
 
 # 인덱스 매핑 생성
 if not es.indices.exists(index=index_name):
+    # Standard 분석기 기반 인덱스 설정
     es.indices.create(
         index=index_name,
         body={
-            # mapping 설정
-            "mappings": {
-                "properties": {
-                    "food_category_code": {
-                        # 식품대분류코드를 범위로 사용하여 유사도 분석 진행 범위 줄이기
-                        "type": "keyword"
-                    },
-                    "food_name": {
-                        "type": "text",
-                        # n-gram 분석기 적용
-                        "analyzer": "ngram_analyzer",  
-                        # 검색 시 standard 분석기로 매칭
-                        "search_analyzer": "standard"  
+            "settings": {
+                "index": {
+                    "analysis": {
+                        "analyzer": {
+                            "standard_analyzer": {
+                                "type": "standard"
+                            }
+                        }
                     }
                 }
             },
-            "settings": {
-                # max_gram - min_gram 차이 허용
-                "index.max_ngram_diff": 2,
-                "analysis": {
-                    "analyzer": {
-                        "ngram_analyzer": {
-                            "type": "custom",
-                            "tokenizer": "ngram_tokenizer",
-                        }
-                    },
-                    "tokenizer": {
-                        "ngram_tokenizer": {
-                            # n-gram 분석: 3(최소) ~ 5(최대글자 단위로 분리하여 검색 가능
-                            "type": "ngram",
-                            "min_gram": 3,
-                            "max_gram": 5,
-                            "token_chars": ["letter", "digit"]
-                        }
+            "mappings": {
+                "properties": {
+                    "food_name": {
+                        "type": "text",
+                        "analyzer": "standard_analyzer",  # Standard 분석기 적용
+                        "search_analyzer": "standard"
                     }
                 }
             }
@@ -62,7 +46,7 @@ if not es.indices.exists(index=index_name):
 
 
 # 데이터셋 불러오기
-df = pd.read_csv(os.path.join(settings.DATA_PATH, "food.csv"))
+df = pd.read_csv(os.path.join(settings.DOCKER_DATA_PATH, "food.csv"))
 
 
 # '_'(underbar)를 공백으로 대체
@@ -74,7 +58,6 @@ actions = [
     {
         "_index": index_name,
         "_source": {
-            "food_category_code": row['FOOD_CODE'],
             "food_name": row['FOOD_NAME']
         }
     }

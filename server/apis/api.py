@@ -27,8 +27,8 @@ PROMPT_PATH = os.getenv("PROMPT_PATH")
 
 # Elasticsearch 클라이언트 설정
 es = Elasticsearch(
-    settings.ELASTICSEARCH_HOST, 
-    basic_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD))
+    settings.ELASTICSEARCH_LOCAL_HOST, 
+    http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD))
 
 # prompt를 불러오기
 def read_prompt(filename):
@@ -207,64 +207,72 @@ scheduler.start()
 # 음식 이미지 분석 API: prompt_type은 함수명과 동일
 def food_image_analyze(image_base64: str):
 
-    # prompt 타입 설정
-    prompt_file = os.path.join(PROMPT_PATH, "food_image_analyze.txt")
-    prompt = read_prompt(prompt_file)
+    try:
+        # prompt 타입 설정
+        prompt_file = os.path.join(PROMPT_PATH, "food_image_analyze.txt")
+        prompt = read_prompt(prompt_file)
 
-    # OpenAI API 호출
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": prompt},
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{image_base64}"
-                            # 검증 필요
-                            # "detail": "high"
+        # OpenAI API 호출
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": prompt},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_base64}"
+                                # 검증 필요
+                                # "detail": "high"
+                            }
                         }
-                    }
-                ]
-            }
-        ],
-        temperature=0.0,
-        max_tokens=300
-    )
-    
-    result = response.choices[0].message.content
-
-    return result
-
-
-# 음식명 유사도 분석 결과 반환
-def search_similar_food(category_code, query_name):
-    
-    # 인덱스 이름 설정
-    index_name = "food_names"
-
-    # 제공받은 category_code 범위 내에서 음식명 유사도 분석 진행
-    response = es.search(
-        index=index_name,
-        body={
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {"food_category_code": category_code}},
-                        {"match": {"food_name": query_name}}
                     ]
                 }
-            }
-        },
-        # 상위 3개 음식명 반환
-        size=3
-    )
-    
-    # 음식명만 추출
-    # [hit["_source"]["food_name"] for hit in response['hits']['hits']]
-    result = list(hit["_source"]["food_name"] for hit in response['hits']['hits'])
-    
-    return result
+            ],
+            temperature=0.0,
+            max_tokens=300
+        )
+        
+        result = response.choices[0].message.content
 
+        return result
+    except Exception as e:
+        raise AnalysisError("OpenAI API 호출 중 오류 발생")
+
+
+def search_similar_food(query_name):
+    try:
+        index_name = "food_names"
+        
+        # Elasticsearch 유사도 검색
+        response = es.search(
+            index=index_name,
+            body={
+                "query": {
+                    "bool": {
+                        "should": [
+                            {"match": {"food_name": {"query": query_name, "fuzziness": "AUTO"}}},
+                            {"match_phrase_prefix": {"food_name": query_name}}
+                        ],
+                        "minimum_should_match": 1
+                    }
+                }
+            },
+            size=3
+        )
+        
+        # 검색 결과 가져오기
+        hits = response.get('hits', {}).get('hits', [])
+        
+        # 검색 결과가 있을 경우 food_name만 추출
+        result = [{"food_name": hit["_source"]["food_name"]} for hit in hits] if hits else [{"food_name": "비슷한 결과 없음"}]
+        
+        # 디버그 출력으로 결과 확인
+        print("Search result:", result)
+        
+        return result[:3]  # 최대 3개의 결과만 반환
+
+    except Exception as e:
+        raise AnalysisError(f"유사도 분석 중 오류 발생: {str(e)}")

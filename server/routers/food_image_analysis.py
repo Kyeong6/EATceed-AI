@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, ValidationError
@@ -41,10 +42,15 @@ async def analyze_food_image(request: ImageAnalysisRequest,
     try:
         # OpenAI API 호출로 이미지 분석 및 음식명 추출
         detected_food_data = food_image_analyze(request.image_base64)
+        # 문자열로 반환된 데이터 JSON으로 변환
+        detected_food_data = json.loads(detected_food_data)
 
         # 음식명 분석 결과가 없을 경우
         if not detected_food_data:
             raise AnalysisError("음식 분석 결과가 비어있습니다.")
+        
+    except json.JSONDecodeError:
+        raise AnalysisError("이미지 분석 결과의 형식이 잘못되었습니다.")
     except ValidationError as e:
         raise AnalysisError(f"이미지 분석 중 오류 발생: {str(e)}")
 
@@ -57,19 +63,22 @@ async def analyze_food_image(request: ImageAnalysisRequest,
 
     # 유사도 검색 진행
     for food_data in detected_food_data:
-        food_name = food_data["food_name"]
-        category_code = food_data["code"]
+        # 데이터 형식 확인 후 인덱싱 접근
+        food_name = food_data["food_name"] if isinstance(food_data, dict) else None
 
         # 음식명 또는 코드 누락
-        if not food_name or not category_code:
-            raise AnalysisError("음식명 또는 카테고리 코드가 누락되었습니다.")
+        if not food_name:
+            raise AnalysisError("음식명 데이터가 누락되었습니다.")
         
         try:
             # Elasticsearch에서 유사도 분석 수행
-            similar_foods = search_similar_food(category_code, food_name)
+            similar_foods = search_similar_food(food_name)
 
             # 유사도 분석 결과에서 음식명 리스트 추출
             similar_food_names = [similar_food["_source"]["food_name"] for similar_food in similar_foods]
+            if not similar_food_names:
+                raise AnalysisError(f"유사도 분석 결과가 없습니다: food_name={food_name}")
+
             
             # 유사도 분석 진행 후 얻은 음식의 pk값 얻기
             food_pks = get_food_pk_by_name(db, similar_food_names)

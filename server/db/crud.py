@@ -319,4 +319,4 @@ def get_user_data(db: Session, member_id: int):
 # 예외처리 필요
 def get_food_pk_by_name(db: Session, food_names: list):
     foods = db.query(Food).filter(Food.FOOD_NAME.in_(food_names)).all()
-    return {Food.food_name: Food.id for Food in foods}
+    return {Food.FOOD_NAME: Food.FOOD_PK for Food in foods}
