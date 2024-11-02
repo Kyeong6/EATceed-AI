@@ -2,7 +2,8 @@
 import os
 import logging
 import pandas as pd
-import numpy as np
+import redis
+from datetime import datetime, timedelta
 from core.config import settings
 from sqlalchemy.orm import Session
 from db.database import get_db
@@ -30,6 +31,19 @@ PROMPT_PATH = os.getenv("PROMPT_PATH")
 es = Elasticsearch(
     settings.ELASTICSEARCH_LOCAL_HOST, 
     http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD))
+
+
+# Redis 클라이언트 설정
+redis_client = redis.StrictRedis(
+    host=settings.REDIS_LOCAL_HOST,  
+    port=settings.REDIS_PORT,
+    password=settings.REDIS_PASSWORD,
+    decode_responses=True
+)
+
+# 요청 제한 설정
+RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
+
 
 # prompt를 불러오기
 def read_prompt(filename):
@@ -291,3 +305,24 @@ def search_similar_food(query_name):
 
     except Exception as e:
         raise AnalysisError(f"유사도 분석 중 오류 발생: {str(e)}")
+    
+
+# Redis 기반 요청 제한 함수
+def rate_limit_user(user_id: int):
+    redis_key = f"rate_limit:{user_id}"
+    current_count = redis_client.get(redis_key)
+
+    if current_count:
+        if int(current_count) >= RATE_LIMIT:
+            raise UserDataError("하루 요청 제한을 초과했습니다.")
+        else:
+            redis_client.incr(redis_key)
+            remaning_requests = RATE_LIMIT - int(current_count) - 1
+    else:
+        redis_client.set(redis_key, 1)
+        # 매일 자정 횟수 리셋
+        next_time = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        redis_client.expireat(redis_key, int(next_time.timestamp()))
+        remaning_requests = RATE_LIMIT - 1
+
+    return remaning_requests

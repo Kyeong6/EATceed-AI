@@ -43,6 +43,7 @@ services:
       - "6379:6379"
     environment:
       - REDIS_PASSWORD=gaebaljip-local
+    command: ["redis-server", "--requirepass", "gaebaljip-local"]
     volumes:
       - ./redis_data:/data
 
