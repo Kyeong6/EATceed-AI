@@ -42,7 +42,7 @@ redis_client = redis.StrictRedis(
 )
 
 # 요청 제한 설정
-RATE_LIMIT = 5  # 하루 최대 요청 가능 횟수
+RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
 
 
 # prompt를 불러오기

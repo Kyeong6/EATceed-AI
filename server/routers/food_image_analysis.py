@@ -2,10 +2,9 @@ import json
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, ValidationError
-from apis.api import food_image_analyze, search_similar_food
+from apis.api import food_image_analyze, search_similar_food, rate_limit_user
 from auth.decoded_token import get_current_member
 from db.database import get_db
-from db.crud import get_food_pk_by_name
 from errors.custom_exceptions import InvalidJWT, AnalysisError
 
 router = APIRouter(
@@ -37,6 +36,9 @@ async def analyze_food_image(request: ImageAnalysisRequest,
     """
     1. 요청 횟수 제한 구현(Redis)
     """
+
+    # 남은 요청 횟수 
+    remaining_requests = rate_limit_user(member_id)
 
     """
     2. food_image_analyze 함수를 통해 얻은 음식명(리스트 값)을 이용해 
@@ -84,11 +86,14 @@ async def analyze_food_image(request: ImageAnalysisRequest,
 
         except Exception as e:
             raise AnalysisError(f"유사도 분석 중 오류 발생: {str(e)}")
-        
+    
     response = {
-                "success": True,
-                "response": similar_food_results,
-                "error": None
-                }
+        "success": True,
+        "response": {
+            "remaining_requests": remaining_requests,
+            "food_info": similar_food_results
+        },
+        "error": None
+    }
 
     return response

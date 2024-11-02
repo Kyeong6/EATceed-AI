@@ -53,6 +53,7 @@ class Settings:
     REDIS_LOCAL_HOST = os.getenv("REDIS_LOCAL_HOST")
     REDIS_PORT = int(os.getenv("REDIS_PORT"))
     REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+    RATE_LIMIT = int(os.getenv("RATE_LIMIT"))
     
     
 settings = Settings()
