@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from db.database import get_db
-from db.crud import get_latest_eat_habits
+from db.crud import get_latest_eat_habits, update_analysis_status, get_analysis_status 
 from auth.decoded_token import get_current_member
 import logging
 from errors.custom_exceptions import InvalidJWT, UserDataError
@@ -18,9 +18,9 @@ router = APIRouter(
     tags=["식습관 분석"]
 )
 
-# 전체 분석 라우터
+# 전체 식습관 분석 라우터
 @router.get("/")
-def user_analysis(db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
+def get_user_analysis(db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
     
     # 인증 확인
     if not member_id:
@@ -42,4 +42,31 @@ def user_analysis(db: Session = Depends(get_db), member_id: int = Depends(get_cu
         },
         "error": None
         }
+    return response
+
+
+# 식습관 분석 상태 알림 라우터
+@router.get("/status")
+def get_status_alert(db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
+    
+    # 인증 확인
+    if not member_id:
+            raise InvalidJWT()
+    
+    # 분석 상태 조회
+    analysis_status = get_analysis_status(db, member_id)
+    
+    if not analysis_status:
+        raise UserDataError("식습관 분석 상태를 찾을 수 없습니다.")
+
+    # 분석 완료 상태 응답
+    response = {
+        "success": True,
+        "response": {
+            "status": analysis_status.IS_ANALYZED,
+            "analysis_date": analysis_status.ANALYSIS_DATE
+        },
+        "error": None
+    }
+    
     return response

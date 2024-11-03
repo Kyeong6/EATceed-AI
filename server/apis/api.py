@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from core.config import settings
 from sqlalchemy.orm import Session
 from db.database import get_db
-from db.crud import create_eat_habits, get_user_data, update_flag, get_all_member_id
+from db.crud import create_eat_habits, get_user_data, update_flag, get_all_member_id, update_analysis_status
 from apscheduler.schedulers.background import BackgroundScheduler
 from errors.custom_exceptions import UserDataError, AnalysisError
 from openai import OpenAI
@@ -200,10 +200,15 @@ def scheduled_task():
         # 모든 기존 레코드의 FLAG를 0으로 업데이트
         update_flag(db)
 
-        # 모든 유저 분석 작업 수행
+        # 각 회원의 식습관 분석 수행
         member_ids = get_all_member_id(db)
         for member_id in member_ids:
+
+            # 분석 작업 수행
             full_analysis(db=db, member_id=member_id)
+
+            # 분석 상태 업데이트
+            update_analysis_status(db, member_id)
 
     except Exception as e:
         logger.error(f"Error during scheduled task: {e}")

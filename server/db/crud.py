@@ -1,7 +1,7 @@
 # DB CRUD 함수 정의
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from db.models import EatHabits, Member, Food, Meal, MealFood
+from db.models import EatHabits, Member, Food, Meal, MealFood, AnalysisStatus
 
 import logging
 from errors.custom_exceptions import InvalidUserId, UserDataError, AnalysisError
@@ -314,14 +314,35 @@ def get_user_data(db: Session, member_id: int):
     #     raise UserDataError("")
 
 
-# 음식 분석: 음식명에 따른 pk값 조회
-def get_food_pk_by_name(db: Session, food_names: list):
-    food_pks = {}
-    for name in food_names:
-        # FOOD_TB에서 정확하게 일치하는 음식 조회
-        food = db.query(Food).filter(Food.FOOD_NAME.ilike(name)).first()
-        if food:
-            food_pks[name] = food.FOOD_PK
+# 식습관 분석 알림: 분석 상태 업데이트
+def update_analysis_status(db: Session, member_id: int):
+    try:
+        analysis_status = db.query(AnalysisStatus).filter(
+            AnalysisStatus.MEMBER_FK == member_id
+        ).first()
+
+        # 기록이 이미 존재
+        if analysis_status:
+            analysis_status.IS_ANALYZED = True
+            analysis_status.ANALYSIS_DATE = datetime.now()
+        
+        # 기록이 존재하지 않을 경우
         else:
-            food_pks[name] = None
-    return food_pks
+            analysis_status = AnalysisStatus(
+                MEMBER_FK=member_id,
+                IS_ANALYZED=True,
+                ANALYSIS_DATE=datetime.now()
+            )
+            db.add(analysis_status)
+        db.commit()
+    except Exception as e:
+        raise AnalysisError("식습관 분석 상태 업데이트 중 오류가 발생했습니다.")
+
+# 식습관 분석 알림: 분석 상태 조회
+def get_analysis_status(db: Session, member_id: int):
+    
+    result = db.query(AnalysisStatus).filter(
+        AnalysisStatus.MEMBER_FK == member_id
+    ).first()
+
+    return result
