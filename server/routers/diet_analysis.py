@@ -2,10 +2,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from db.database import get_db
-from db.crud import get_latest_eat_habits, get_user_data
+from db.crud import get_latest_eat_habits
 from auth.decoded_token import get_current_member
 import logging
-from errors.custom_exceptions import InvalidJWT, ExpiredJWT, UserDataError
+from errors.custom_exceptions import InvalidJWT, UserDataError
 
 # 로그 메시지
 logging.basicConfig(level=logging.DEBUG,
@@ -20,7 +20,8 @@ router = APIRouter(
 
 # 전체 분석 라우터
 @router.get("/")
-def full_analysis_route(db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
+def user_analysis(db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
+    
     # 인증 확인
     if not member_id:
             raise InvalidJWT()

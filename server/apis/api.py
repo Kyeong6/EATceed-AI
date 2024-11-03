@@ -44,6 +44,8 @@ redis_client = redis.StrictRedis(
 # 요청 제한 설정
 RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
 
+# Chatgpt API 사용
+client = OpenAI(api_key = OPENAI_API_KEY)
 
 # prompt를 불러오기
 def read_prompt(filename):
@@ -51,9 +53,7 @@ def read_prompt(filename):
         prompt = file.read().strip()
     return prompt
 
-# Chatgpt API 사용
-client = OpenAI(api_key = OPENAI_API_KEY)
-
+# 식습관 분석 진행을 위한 OpenAI API 연결
 def get_completion(prompt, model="gpt-4o-mini"):
     messages = [{"role": "user", "content": prompt}]
     response = client.chat.completions.create(
@@ -61,8 +61,8 @@ def get_completion(prompt, model="gpt-4o-mini"):
         messages=messages,
         temperature=0
     )
-    logger.debug(f"Prompt sent to OpenAI: {prompt}")
-    logger.debug(f"Response from OpenAI: {response.choices[0].message.content}")
+    # logger.debug(f"Prompt sent to OpenAI: {prompt}")
+    # logger.debug(f"Response from OpenAI: {response.choices[0].message.content}")
     return response.choices[0].message.content
 
 
@@ -70,8 +70,8 @@ def get_completion(prompt, model="gpt-4o-mini"):
 def weight_predict(user_data: dict) -> str:
     try:
         logger.debug(f"user_data in weight_predict: {user_data}")
-        energy = user_data['user'][5]["에너지(kcal)"]
-        tdee = user_data['user'][13]["TDEE"]
+        energy = user_data['user'][5]["calorie"]
+        tdee = user_data['user'][13]["tdee"]
         if energy > tdee:
             return '증가'
         else:
@@ -85,20 +85,20 @@ def analyze_advice(prompt_type, user_data):
     try:
         prompt_file = os.path.join(PROMPT_PATH, f"{prompt_type}.txt")
         prompt = read_prompt(prompt_file)
-        # df = pd.read_csv(DATA_PATH, encoding='cp949')
-        # weight_change = weight_predict(user_data)
         
         # 프롬프트 변수 설정
-        탄수화물 = user_data['user'][8]['탄수화물(g)']
-        단백질 = user_data['user'][6]['단백질(g)']
-        지방 = user_data['user'][7]['지방(g)']
-        나트륨 = user_data['user'][11]['나트륨(mg)']
-        식이섬유 = user_data['user'][9]['식이섬유(g)']
-        당류 = user_data['user'][10]['당류(g)']
+        carbohydrate = user_data['user'][8]['carbohydrate)']
+        protein = user_data['user'][6]['protein']
+        fat = user_data['user'][7]['fat']
+        sodium = user_data['user'][11]['sodium']
+        dietary_fiber = user_data['user'][9]['dietary_fiber']
+        sugar = user_data['user'][10]['sugars']
         
-        prompt = prompt.format(탄수화물=탄수화물, 단백질=단백질, 지방=지방, 나트륨=나트륨, 식이섬유=식이섬유, 당류=당류)
+        prompt = prompt.format(carbohydrate=carbohydrate, protein=protein, fat=fat, 
+                               sodium=sodium, dietary_fiber=dietary_fiber, sugars=sugar)
 
         # logger.debug(f"Generated prompt: {prompt}")
+        # 식습관 분석 결과값 구성
         completion = get_completion(prompt)
         return completion
     except Exception as e:
@@ -110,27 +110,28 @@ def analyze_diet(prompt_type, user_data):
     try:
         prompt_file = os.path.join(PROMPT_PATH, f"{prompt_type}.txt")
         prompt = read_prompt(prompt_file)
-        df = pd.read_csv(os.path.join(DATA_PATH, "analysis_diet.csv"), encoding='cp949')
+        df = pd.read_csv(os.path.join(DATA_PATH, "diet.csv"))
         weight_change = weight_predict(user_data)
         
         # 프롬프트 변수 설정
-        성별 = user_data['user'][0]['성별']
-        나이 = user_data['user'][1]['나이']
-        신장 = user_data['user'][2]['신장']
-        체중 = user_data['user'][3]['체중']
-        신체활동지수 = user_data['user'][12]['신체활동지수']
-        탄수화물 = user_data['user'][8]['탄수화물(g)']
-        단백질 = user_data['user'][6]['단백질(g)']
-        지방 = user_data['user'][7]['지방(g)']
+        gender = user_data['user'][0]['gender']
+        age = user_data['user'][1]['age']
+        height = user_data['user'][2]['height']
+        weight = user_data['user'][3]['weight']
+        physical_activity_index = user_data['user'][12]['physical_activity_index']
+        carbohydrate = user_data['user'][8]['carbohydrate']
+        protein = user_data['user'][6]['protein']
+        fat = user_data['user'][7]['fat']
         
-        prompt = prompt.format(성별=성별, 나이=나이, 신장=신장, 체중=체중, 신체활동지수=신체활동지수,
-                               탄수화물=탄수화물, 단백질=단백질, 지방=지방)
+        prompt = prompt.format(gender=gender, age=age, height=height, weight=weight, 
+                               physical_activity_index=physical_activity_index,
+                               carbohydrate=carbohydrate, protein=protein, fat=fat)
         
         # agent에 전달할 데이터 설정
         if weight_change == '증가':
-            df = df[df['체중변화'] < 0] # 데이터에서 체중이 감소한 경우
+            df = df[df['weight_change'] < 0] # 데이터에서 체중이 감소한 경우
         else:
-            df = df[df['체중변화'] > 0] # 데이터에서 체중이 증가한 경우
+            df = df[df['weight_change'] > 0] # 데이터에서 체중이 증가한 경우
         
         # langchain의 create_pandas_dataframe_agent 사용
         agent = create_pandas_dataframe_agent(
@@ -148,6 +149,7 @@ def analyze_diet(prompt_type, user_data):
         logger.error(f"Error in analyze_diet function: {e}")
         raise AnalysisError("식습관 분석을 실행할 수 없습니다")
 
+# 최종 식습관 분석 기능 함수
 def full_analysis(db: Session, member_id: int):
     try:
         user_data = get_user_data(db, member_id)
@@ -198,7 +200,7 @@ def scheduled_task():
         # 모든 기존 레코드의 FLAG를 0으로 업데이트
         update_flag(db)
 
-        # 전체 분석 작업 수행
+        # 모든 유저 분석 작업 수행
         member_ids = get_all_member_id(db)
         for member_id in member_ids:
             full_analysis(db=db, member_id=member_id)

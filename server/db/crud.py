@@ -38,9 +38,9 @@ def crud_test(db: Session, member_id: int, flag: bool, weight_prediction: str, a
         db.rollback()
         
 
-# 결과값 db에 저장
+# 식습관 분석 결과값 db에 저장
 def create_eat_habits(db: Session, member_id: int, weight_prediction: str, advice_carbo: str,
-                             advice_protein: str, advice_fat: str, synthesis_advice: str, flag: bool = True):
+                             advice_protein: str, advice_fat: str, synthesis_advice: str, avg_calorie: float, flag: bool = True):
     try:
         created_date = datetime.now()
         logger.debug(f"Attempting to insert EatHabits record for member_id: {member_id}")
@@ -53,7 +53,8 @@ def create_eat_habits(db: Session, member_id: int, weight_prediction: str, advic
             ADVICE_PROTEIN=advice_protein,
             ADVICE_FAT=advice_fat,
             SYNTHESIS_ADVICE=synthesis_advice,
-            MEMBER_FK=member_id
+            MEMBER_FK=member_id,
+            AVG_CALORIE=avg_calorie
         )
         
         db.add(eat_habits)
@@ -79,7 +80,7 @@ def update_flag(db: Session):
         db.rollback()
         
 
-# Background에서 실행할 때 모든 사용자의 분석 결과를 도출 필요
+# Background에서 실행할 때 모든 사용자의 분석 결과 도출 필요
 def get_all_member_id(db: Session):
     try:
         return [member.MEMBER_PK for member in db.query(Member).all()]
@@ -88,7 +89,7 @@ def get_all_member_id(db: Session):
 
 
 
-# 최신 분석 결과 조회 
+# 최신 분석 결과 조회(FLAG == True)
 def get_latest_eat_habits(db: Session, member_id: int):
     try:
         result = db.query(EatHabits).filter(EatHabits.MEMBER_FK == member_id, EatHabits.FLAG == True).first()
@@ -97,8 +98,6 @@ def get_latest_eat_habits(db: Session, member_id: int):
         return result
     except Exception as e:
         logger.error(f"Error fetching latest eat habits: {e}")
-        
-
 
 
 # member_id에 해당하는 사용자 정보 조회
@@ -180,7 +179,7 @@ def get_member_meals_avg(db: Session, member_id: int):
             for meal_food in meal_foods:
                 food_info = get_food_info(db, meal_food.FOOD_FK)
 
-                # 사용자가 먹은 양 설정
+                # 사용자가 먹은 양 설정(단위: multiple or g)
                 if food_info:
                     multiplier = 1
                     if meal_food.MEAL_FOOD_MULTIPLE is not None:
@@ -231,7 +230,7 @@ def get_member_body_info(db: Session, member_id: int):
                 'age': member.MEMBER_AGE,
                 'height': member.MEMBER_HEIGHT,
                 'weight': member.MEMBER_WEIGHT,
-                'activity': activity_value
+                'physical_activity_index': activity_value
             }
             return body_info
         else:
@@ -274,24 +273,24 @@ def get_user_data(db: Session, member_id: int):
             height=member_info['height'],
             age=member_info['age']
         )
-        tdee = get_tdee(bmr, member_info['activity'])
+        tdee = get_tdee(bmr, member_info['physical_activity_index'])
 
         user_data = {
             "user": [
-                {"성별": '남성' if member_info['gender'] == 0 else '여성'},
-                {"나이": member_info['age']},
-                {"신장": member_info['height']},
-                {"체중": member_info['weight']},
-                {"식품섭취량": avg_nutrition["serving_size"]},
-                {"에너지(kcal)": avg_nutrition["calorie"]},
-                {"단백질(g)": avg_nutrition["protein"]},
-                {"지방(g)": avg_nutrition["fat"]},
-                {"탄수화물(g)": avg_nutrition["carbohydrate"]},
-                {"식이섬유(g)": avg_nutrition["dietary_fiber"]},
-                {"당류(g)": avg_nutrition["sugars"]},
-                {"나트륨(mg)": avg_nutrition["sodium"]},
-                {"신체활동지수": member_info['activity']},
-                {"TDEE": tdee}
+                {"gender": 'Male' if member_info['gender'] == 0 else 'Female'},
+                {"age": member_info['age']},
+                {"height": member_info['height']},
+                {"weight": member_info['weight']},
+                {"serving_size": avg_nutrition["serving_size"]},
+                {"calorie": avg_nutrition["calorie"]},
+                {"protein": avg_nutrition["protein"]},
+                {"fat": avg_nutrition["fat"]},
+                {"carbohydrate": avg_nutrition["carbohydrate"]},
+                {"dietary_fiber": avg_nutrition["dietary_fiber"]},
+                {"sugars": avg_nutrition["sugars"]},
+                {"sodium": avg_nutrition["sodium"]},
+                {"physical_activity_index": member_info['physical_activity_index']},
+                {"tdee": tdee}
             ]
         }
 
