@@ -40,7 +40,7 @@ def crud_test(db: Session, member_id: int, flag: bool, weight_prediction: str, a
 
 # 식습관 분석 결과값 db에 저장
 def create_eat_habits(db: Session, member_id: int, weight_prediction: str, advice_carbo: str,
-                             advice_protein: str, advice_fat: str, synthesis_advice: str, avg_calorie: float, flag: bool = True):
+                      advice_protein: str, advice_fat: str, synthesis_advice: str, flag: bool = True):
     try:
         created_date = datetime.now()
         logger.debug(f"Attempting to insert EatHabits record for member_id: {member_id}")
@@ -53,8 +53,7 @@ def create_eat_habits(db: Session, member_id: int, weight_prediction: str, advic
             ADVICE_PROTEIN=advice_protein,
             ADVICE_FAT=advice_fat,
             SYNTHESIS_ADVICE=synthesis_advice,
-            MEMBER_FK=member_id,
-            AVG_CALORIE=avg_calorie
+            MEMBER_FK=member_id
         )
         
         db.add(eat_habits)
@@ -67,6 +66,7 @@ def create_eat_habits(db: Session, member_id: int, weight_prediction: str, advic
         logger.error(f"Error inserting EatHabits record for member_id: {member_id} - {e}")
         db.rollback()
         raise AnalysisError("식습관 분석을 실행할 수 없습니다")
+    
 
 # FLAG 활성/비활성 
 def update_flag(db: Session):
@@ -96,8 +96,12 @@ def get_latest_eat_habits(db: Session, member_id: int):
         if not result:
             raise UserDataError("유저 데이터 에러입니다.")
         return result
+    except UserDataError as e:
+        logger.error(f"User data not found: {e}")
+        return None
     except Exception as e:
-        logger.error(f"Error fetching latest eat habits: {e}")
+        logger.error(f"Unexpected error fetching latest eat habits: {e}")
+        return None
 
 
 # member_id에 해당하는 사용자 정보 조회
@@ -153,7 +157,6 @@ def get_food_info(db: Session, food_id: int):
         
 
 
-
 # 최종적으로 얻고자하는 사용자에 따른 7일간의 영양성분의 평균값 얻기
 def get_member_meals_avg(db: Session, member_id: int):
     try:
@@ -207,6 +210,14 @@ def get_member_meals_avg(db: Session, member_id: int):
     except Exception as e:
         logger.error(f"Error calculating member meals average: {e}")
         raise UserDataError("유저 데이터 에러입니다")
+
+
+# 사용자의 평균 칼로리 얻기: API 반환값 사용
+def calculate_avg_calorie(db: Session, member_id: int):
+    
+    avg_nutrition = get_member_meals_avg(db, member_id)
+    
+    return avg_nutrition["calorie"]
 
 
 # activity 값 변환을 위한 딕셔너리
@@ -306,7 +317,7 @@ def get_user_data(db: Session, member_id: int):
             avg_nutrition["sodium"]
         ]
         if all(value == 0 for value in nutrition_values):
-            raise UserDataError("유저 데이터 에러입니다")
+            raise UserDataError("유저 데이터 에러입니다.")
 
         return user_data, avg_nutrition["calorie"]
     # except Exception as e:
