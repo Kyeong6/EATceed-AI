@@ -157,16 +157,15 @@ def full_analysis(db: Session, member_id: int):
         # 체중 예측
         weight_result = weight_predict(user_data)
         user_data['weight_change'] = weight_result
-        avg_calorie = user_data['user'][5]["에너지(kcal)"]
 
         # 각 프롬프트에 대해 분석 수행
         prompt_types = ['health_advice', 'weight_carbo', 'weight_fat', 'weight_protein']
         analysis_results = {}
         for prompt_type in prompt_types:
-            if prompt_type == 'health_advice': # 조언 프롬프트는 analyze_advice 함수
+            if prompt_type == 'health_advice':  # 조언 프롬프트는 analyze_advice 함수
                 result = analyze_advice(prompt_type, user_data)
                 analysis_results[prompt_type] = result
-            else: # 판단 프롬프트는 analyze_diet 함수
+            else:  # 판단 프롬프트는 analyze_diet 함수
                 result = analyze_diet(prompt_type, user_data)
                 analysis_results[prompt_type] = result['output']
 
@@ -179,11 +178,10 @@ def full_analysis(db: Session, member_id: int):
             advice_protein=analysis_results['weight_protein'],
             advice_fat=analysis_results['weight_fat'],
             synthesis_advice=analysis_results['health_advice'],
-            flag=True,
-            avg_calorie=avg_calorie
+            flag=True
         )
 
-        logger.info(f"Insert success ")
+        logger.info(f"Insert success")
 
     except ValueError as e:
         logger.error(f"Value error during analysis: {e}")

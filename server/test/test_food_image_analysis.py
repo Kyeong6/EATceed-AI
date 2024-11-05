@@ -3,14 +3,18 @@ import sys
 import requests
 import pytest
 import redis
+from fastapi.testclient import TestClient
 
 # Root directory를 Project Root로 설정: server directory 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
 sys.path.append(project_root)
 os.chdir(project_root)
 
+from main import app  
 from core.config import settings
 
+# 클라이언트 설정
+client = TestClient(app) 
 
 # Redis 클라이언트 설정
 redis_client = redis.StrictRedis(
@@ -38,21 +42,17 @@ def analyze_food_image(base64_data):
     Returns:
         dict: API의 응답 JSON 데이터
     """
-    # 서버 주소 설정
-    url = "http://localhost:8000/v1/ai/food_image_analysis/"
-
-    # 테스트 진행을 위한 JWT 토큰 설정 
     headers = {
         "Authorization": f"Bearer {settings.TEST_TOKEN}"  
     }
+    
+    # API 요청
+    response = client.get("/v1/ai/diet_analysis/status", headers=headers)
 
     # txt 파일에 존재하는 base64 인코딩 사용
     payload = {
         "image_base64": base64_data
     }
-
-    # 요청에 대한 응답값
-    response = requests.post(url, json=payload, headers=headers)
 
     if response.status_code == 200:
         return response.json()
