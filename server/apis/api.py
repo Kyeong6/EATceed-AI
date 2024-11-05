@@ -3,6 +3,9 @@ import os
 import logging
 import pandas as pd
 import redis
+import secrets
+from fastapi import HTTPException, Depends, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from datetime import datetime, timedelta
 from core.config import settings
 from sqlalchemy.orm import Session
@@ -46,6 +49,9 @@ RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
 
 # Chatgpt API 사용
 client = OpenAI(api_key = OPENAI_API_KEY)
+
+# HTTP 기본 인증을 사용하는 Security 객체 생성
+security = HTTPBasic()
 
 # prompt를 불러오기
 def read_prompt(filename):
@@ -331,3 +337,15 @@ def rate_limit_user(user_id: int):
         remaning_requests = RATE_LIMIT - 1
 
     return remaning_requests
+
+# Swagger 인증
+def get_current_username(credentials: HTTPBasicCredentials = Depends(security)) -> str:
+    correct_username = secrets.compare_digest(credentials.username, settings.ADMIN_USERNAME)
+    correct_password = secrets.compare_digest(credentials.password, settings.ADMIN_PASSWORD)
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
