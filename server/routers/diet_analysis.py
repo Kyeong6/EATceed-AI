@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from db.database import get_db
-from db.crud import get_latest_eat_habits, update_analysis_status, get_analysis_status 
+from db.crud import get_latest_eat_habits, get_analysis_status, calculate_avg_calorie
 from auth.decoded_token import get_current_member
 import logging
 from errors.custom_exceptions import InvalidJWT, UserDataError
@@ -29,11 +29,14 @@ def get_user_analysis(db: Session = Depends(get_db), member_id: int = Depends(ge
     latest_eat_habits = get_latest_eat_habits(db, member_id)
     if not latest_eat_habits:
          raise UserDataError("유저 데이터 에러입니다")
+    
+    # 평균 칼로리 계산
+    avg_calorie = calculate_avg_calorie(db, member_id)
 
     response = {
         "success": True,
         "response": {
-            "avg_calorie" : latest_eat_habits.AVG_CALORIE,
+            "avg_calorie" : avg_calorie,
             "weight_prediction": latest_eat_habits.WEIGHT_PREDICTION,
             "advice_carbo": latest_eat_habits.ADVICE_CARBO,
             "advice_protein": latest_eat_habits.ADVICE_PROTEIN,
