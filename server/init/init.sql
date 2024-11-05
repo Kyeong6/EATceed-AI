@@ -124,26 +124,27 @@ CREATE TABLE ANALYSIS_STATUS_TB
 -- MEMBER_TB 데이터 적재
 INSERT INTO MEMBER_TB (MEMBER_PK, CREATED_DATE, UPDATED_DATE, MEMBER_ACTIVITY, MEMBER_AGE, MEMBER_ETC, MEMBER_GENDER,
                        MEMBER_HEIGHT, MEMBER_WEIGHT, MEMBER_TARGET_WEIGHT, MEMBER_EMAIL, MEMBER_PASSWORD, MEMBER_ROLE, MEMBER_CHECKED)
-VALUES (1, '2023-12-01 08:00:00', '2023-12-01 08:00:00', 'NOT_ACTIVE', 30, '비고 없음', 1, 175.0, 61.0, 66.0, 'abcd123!@gmail.com',
+VALUES
+(2, '2023-12-01 08:00:00', '2023-12-01 08:00:00', 'NOT_ACTIVE', 30, '비고 없음', 1, 175.0, 61.0, 66.0, 'abcd234@@gmail.com',
         '$2a$10$pljAKl0Ad3LnjQyQei.Yz.0Cfcn3Zv/xeBMDwUHDaUrfG8Wm57c56', 'MEMBER', true),
-       (2, '2023-12-01 08:00:00', '2023-12-01 08:00:00', 'NOT_ACTIVE', 30, '비고 없음', 1, 175.0, 61.0, 66.0, 'abcd234@@gmail.com',
-        '$2a$10$pljAKl0Ad3LnjQyQei.Yz.0Cfcn3Zv/xeBMDwUHDaUrfG8Wm57c56', 'MEMBER', true),
-       (3, '2024-05-14 08:00:00', '2024-05-14 08:00:00', 'NOT_ACTIVE', 24, '비고 없음', 1, 175.0, 67.0, 70.0, 'wwns1411@naver.com',
-        '$2a$10$yCTgvLMTXsLepju7jXYKu.O9bYEe.7G5FJNfNkdin8HiYYvCq82.6', 'MEMBER', true);
- 
+(3, '2024-05-14 08:00:00', '2024-05-14 08:00:00', 'NOT_ACTIVE', 24, '비고 없음', 1, 175.0, 67.0, 70.0, 'wwns1411@naver.com',
+        '$2a$10$yCTgvLMTXsLepju7jXYKu.O9bYEe.7G5FJNfNkdin8HiYYvCq82.6', 'MEMBER', true),
+(4, '2023-12-01 08:00:00', '2023-12-01 08:00:00', 'NOT_ACTIVE', 30, '비고 없음', 1, 175.0, 61.0, 66.0, 'abcd123!@gmail.com',
+        '$2a$10$pljAKl0Ad3LnjQyQei.Yz.0Cfcn3Zv/xeBMDwUHDaUrfG8Wm57c56', 'MEMBER', true);
+        
 -- MEAL_TB 데이터 적재
 INSERT INTO MEAL_TB (MEAL_PK, CREATED_DATE, UPDATED_DATE, MEAL_TYPE, MEMBER_FK)
 VALUES 
-(1, '2024-11-03 08:00:00', '2024-11-03 08:00:00', 'BREAKFAST', 1),
+(1, '2024-11-03 08:00:00', '2024-11-03 08:00:00', 'BREAKFAST', 4),
 (2, '2024-11-03 08:30:00', '2024-11-03 08:30:00', 'BREAKFAST', 3),
 (3, '2024-11-03 09:00:00', '2024-11-03 09:00:00', 'BREAKFAST', 2),
-(4, '2024-11-03 12:00:00', '2024-11-03 12:00:00', 'LUNCH', 1),
+(4, '2024-11-03 12:00:00', '2024-11-03 12:00:00', 'LUNCH', 4),
 (5, '2024-11-03 12:30:00', '2024-11-03 12:30:00', 'LUNCH', 3),
 (6, '2024-11-03 13:00:00', '2024-11-03 13:00:00', 'LUNCH', 2),
-(7, '2024-11-03 18:00:00', '2024-11-03 18:00:00', 'DINNER', 1),
+(7, '2024-11-03 18:00:00', '2024-11-03 18:00:00', 'DINNER', 4),
 (8, '2024-11-03 18:30:00', '2024-11-03 18:30:00', 'DINNER', 3),
 (9, '2024-11-03 19:00:00', '2024-11-03 19:00:00', 'DINNER', 2),
-(10, '2024-11-03 20:00:00', '2024-11-03 20:00:00', 'SNACK', 1),
+(10, '2024-11-03 20:00:00', '2024-11-03 20:00:00', 'SNACK', 4),
 (11, '2024-11-03 20:30:00', '2024-11-03 20:30:00', 'SNACK', 3);
 
 -- FOOD_TB 데이터 적재
@@ -172,13 +173,13 @@ VALUES
 -- EAT_HABITS_TB 데이터 적재
 INSERT INTO EAT_HABITS_TB (EAT_HABITS_PK, MEMBER_FK, CREATED_DATE, FLAG, WEIGHT_PREDICTION, ADVICE_CARBO, ADVICE_PROTEIN, ADVICE_FAT, SYNTHESIS_ADVICE)
 VALUES 
-(1, 1, '2024-11-04 00:00:00', 1, '유지', '탄수화물 섭취 증가 권장', '단백질 섭취 증가 권장', '지방 섭취 줄이기 권장', '균형 잡힌 식단 유지 권장'),
+(1, 4, '2024-11-04 00:00:00', 1, '유지', '탄수화물 섭취 증가 권장', '단백질 섭취 증가 권장', '지방 섭취 줄이기 권장', '균형 잡힌 식단 유지 권장'),
 (2, 2, '2024-11-04 00:00:00', 1, '감량', '탄수화물 섭취 줄이기 권장', '단백질 유지', '지방 섭취 증가 권장', '체중 감량을 위한 식단 조정 필요'),
 (3, 3, '2024-11-04 00:00:00', 1, '증가', '탄수화물 섭취 증가 권장', '단백질 섭취 증가 권장', '지방 섭취 증가 권장', '칼로리 흡수 증대를 권장');
 
 -- ANALYSIS_STATUS_TB 데이터 적재
 INSERT INTO ANALYSIS_STATUS_TB (STATUS_PK, ANALYSIS_DATE, IS_ANALYZED, MEMBER_FK)
 VALUES 
-(1, '2024-11-04 00:00:30', 1, 1),  
+(1, '2024-11-04 00:00:30', 1, 4),  
 (2, '2024-11-04 00:00:30', 1, 2),  
 (3, '2024-11-04 00:00:30', 1, 3);  
