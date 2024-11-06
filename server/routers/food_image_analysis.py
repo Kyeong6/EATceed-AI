@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, ValidationError
 from apis.api import food_image_analyze, search_similar_food, rate_limit_user
 from auth.decoded_token import get_current_member
-from db.database import get_db
 from errors.custom_exceptions import InvalidJWT, AnalysisError
 
 router = APIRouter(
@@ -21,13 +20,12 @@ async def food_image_analysis_test():
 # 리팩토링 과정에서 pydantic 위치 변경 진행할 예정
 class ImageAnalysisRequest(BaseModel):
     # base64에 따른 문자열 타입 설정 
-    image_base64: str
+    food_image: str
 
 
 # 음식 이미지 분석 API
 @router.post("/")
-async def analyze_food_image(request: ImageAnalysisRequest,
-                            db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
+async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int = Depends(get_current_member)):
     
     # 인증 확인
     if not member_id:
@@ -48,7 +46,7 @@ async def analyze_food_image(request: ImageAnalysisRequest,
     # OpenAI API를 이용한 이미지 분석: 음식명 결과 얻기
     try:
         # OpenAI API 호출로 이미지 분석 및 음식명 추출
-        detected_food_data = food_image_analyze(request.image_base64)
+        detected_food_data = food_image_analyze(image_base64.food_image)
         # 문자열로 반환된 데이터 JSON으로 변환
         detected_food_data = json.loads(detected_food_data)
 

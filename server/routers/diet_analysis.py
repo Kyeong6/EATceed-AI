@@ -61,13 +61,22 @@ def get_status_alert(db: Session = Depends(get_db), member_id: int = Depends(get
     
     if not analysis_status:
         raise UserDataError("식습관 분석 상태를 찾을 수 없습니다.")
+    
+    # analysis_status 각 필드에 대해 None 체크
+    if analysis_status.ANALYSIS_DATE is None:
+        raise UserDataError("분석 날짜가 설정되지 않았습니다.")
+    if analysis_status.IS_ANALYZED is None:
+        raise UserDataError("분석 상태가 설정되지 않았습니다.")
+    
+     # 날짜 형식을 "YYYY-MM-DD"로 변환
+    analysis_date_str = analysis_status.ANALYSIS_DATE.strftime("%Y-%m-%d")
 
     # 분석 완료 상태 응답
     response = {
         "success": True,
         "response": {
             "status": analysis_status.IS_ANALYZED,
-            "analysis_date": analysis_status.ANALYSIS_DATE
+            "analysis_date": analysis_date_str
         },
         "error": None
     }
