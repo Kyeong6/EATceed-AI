@@ -1,7 +1,7 @@
 import json
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ValidationError
-from apis.api import food_image_analyze, search_similar_food, rate_limit_user
+from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user
 from auth.decoded_token import get_current_member
 from errors.custom_exceptions import InvalidJWT, AnalysisError
 

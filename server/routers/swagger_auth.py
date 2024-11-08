@@ -1,7 +1,7 @@
 from fastapi import Depends, APIRouter
 from fastapi.responses import HTMLResponse
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
-from apis.api import get_current_username
+from apis.swagger import get_current_username
 
 
 router = APIRouter(
