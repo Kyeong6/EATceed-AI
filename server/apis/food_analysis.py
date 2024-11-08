@@ -2,10 +2,12 @@
 import os
 import logging
 import pandas as pd
+from datetime import datetime
 from core.config import settings
 from sqlalchemy.orm import Session
 from db.database import get_db
-from db.crud import create_eat_habits, get_user_data, update_flag, get_all_member_id, update_analysis_status
+from db.models import AnalysisStatus
+from db.crud import create_eat_habits, get_user_data, get_all_member_id, get_analysis_status, get_last_weekend_meals
 from apscheduler.schedulers.background import BackgroundScheduler
 from errors.custom_exceptions import UserDataError, AnalysisError
 from openai import OpenAI
@@ -37,15 +39,12 @@ def get_completion(prompt, model="gpt-4o-mini"):
         messages=messages,
         temperature=0
     )
-    # logger.debug(f"Prompt sent to OpenAI: {prompt}")
-    # logger.debug(f"Response from OpenAI: {response.choices[0].message.content}")
     return response.choices[0].message.content
 
-
-# 체중 예측 함수
+# 체중 예측 함수: user_data 이용
 def weight_predict(user_data: dict) -> str:
     try:
-        logger.debug(f"user_data in weight_predict: {user_data}")
+        logger.info(f"user_data in weight_predict: {user_data}")
         energy = user_data['user'][5]["calorie"]
         tdee = user_data['user'][13]["tdee"]
         if energy > tdee:
@@ -59,7 +58,7 @@ def weight_predict(user_data: dict) -> str:
 # 식습관 조언 함수 (조언 프롬프트)
 def analyze_advice(prompt_type, user_data):
     try:
-        prompt_file = os.path.join(settings.PROMT_PATH, f"{prompt_type}.txt")
+        prompt_file = os.path.join(settings.PROMPT_PATH, f"{prompt_type}.txt")
         prompt = read_prompt(prompt_file)
         
         # 프롬프트 변수 설정
@@ -73,11 +72,13 @@ def analyze_advice(prompt_type, user_data):
         prompt = prompt.format(carbohydrate=carbohydrate, protein=protein, fat=fat, 
                                sodium=sodium, dietary_fiber=dietary_fiber, sugars=sugar)
 
-        # logger.debug(f"Generated prompt: {prompt}")
         # 식습관 분석 결과값 구성
         completion = get_completion(prompt)
         return completion
     except Exception as e:
+        """
+        서버 예외처리 필요
+        """
         logger.error(f"Error in analyze_diet function: {e}")
         raise AnalysisError("식습관 분석을 실행할 수 없습니다")
 
@@ -122,21 +123,26 @@ def analyze_diet(prompt_type, user_data):
         return completion
         
     except Exception as e:
+        """
+        서버 예외처리 필요
+        """
         logger.error(f"Error in analyze_diet function: {e}")
         raise AnalysisError("식습관 분석을 실행할 수 없습니다")
 
 # 최종 식습관 분석 기능 함수
 def full_analysis(db: Session, member_id: int):
     try:
+        # 유저 데이터 활용
         user_data = get_user_data(db, member_id)
 
         # 체중 예측
         weight_result = weight_predict(user_data)
         user_data['weight_change'] = weight_result
+        analysis_status = get_analysis_status(db, member_id)
 
         # 각 프롬프트에 대해 분석 수행
-        prompt_types = ['health_advice', 'weight_carbo', 'weight_fat', 'weight_protein']
         analysis_results = {}
+        prompt_types = ['health_advice', 'weight_carbo', 'weight_fat', 'weight_protein']
         for prompt_type in prompt_types:
             if prompt_type == 'health_advice':  # 조언 프롬프트는 analyze_advice 함수
                 result = analyze_advice(prompt_type, user_data)
@@ -148,13 +154,12 @@ def full_analysis(db: Session, member_id: int):
         # DB에 결과값 저장
         create_eat_habits(
             db=db,
-            member_id=member_id,
             weight_prediction=weight_result,
             advice_carbo=analysis_results['weight_carbo'],
             advice_protein=analysis_results['weight_protein'],
             advice_fat=analysis_results['weight_fat'],
             synthesis_advice=analysis_results['health_advice'],
-            flag=True
+            analysis_status_id=analysis_status.STATUS_PK
         )
 
         logger.info(f"Insert success")
@@ -166,25 +171,35 @@ def full_analysis(db: Session, member_id: int):
         logger.error(f"Error during analysis: {e}")
         raise AnalysisError("식습관 분석을 실행할 수 없습니다")
 
-
-# scheduling 
+# 스케줄링 설정
 def scheduled_task():
     db: Session = next(get_db())
     try:
-        # 모든 기존 레코드의 FLAG를 0으로 업데이트
-        update_flag(db)
+        # ANALYSIS_STATUS_TB에 존재하는 모든 사용자 분석 대기 상태(IS_PENDING = True)로 설정
+        db.query(AnalysisStatus).update({"IS_PENDING": True})
+        db.commit()
 
         # 각 회원의 식습관 분석 수행
-        # 현재는 for문을 통한 순차적으로 분석을 업데이트하지만, 추후에는 비동기적 처리 필요
+        # 현재는 for문을 통한 순차적으로 분석을 업데이트하지만, 추후에 비동기적 처리 필요
         member_ids = get_all_member_id(db)
         for member_id in member_ids:
-
-            # 분석 작업 수행
-            full_analysis(db=db, member_id=member_id)
-
-            # 분석 상태 업데이트
-            update_analysis_status(db, member_id)
-
+            
+            # 지난 일주일 동안 식사 등록 유무 확인
+            meals = get_last_weekend_meals(db, member_id)
+            if meals:
+                # 분석 실행
+                full_analysis(db, member_id)
+                # 분석 상태 업데이트: 완료
+                db.query(AnalysisStatus).filter(AnalysisStatus.MEMBER_FK == member_id).update({
+                    "IS_ANALYZED": True,
+                    "IS_PENDING": False,
+                    "ANALYSIS_DATE": datetime.now()
+                })
+            else:
+                # 식사기록이 없는 경우 분석 대기 상태 해제
+                db.query(AnalysisStatus).filter(AnalysisStatus.MEMBER_FK == member_id).update({
+                    "IS_PENDING": False
+                })
     except Exception as e:
         logger.error(f"Error during scheduled task: {e}")
     finally:
@@ -192,9 +207,6 @@ def scheduled_task():
 
 # APScheduler 설정
 scheduler = BackgroundScheduler()
-
-# test를 위한 시간 설정
-# scheduler.add_job(scheduled_task, 'interval', minutes=5)
 
 # 실제 기능 수행 시간 설정
 scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)

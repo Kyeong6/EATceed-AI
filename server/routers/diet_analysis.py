@@ -1,11 +1,11 @@
 # 식습관 분석 router
+import logging
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from db.database import get_db
 from db.crud import get_latest_eat_habits, get_analysis_status, calculate_avg_calorie
 from auth.decoded_token import get_current_member
-import logging
-from errors.custom_exceptions import InvalidJWT, UserDataError
+from errors.exception import InvalidJWT
 
 # 로그 메시지
 logging.basicConfig(level=logging.DEBUG,
@@ -25,10 +25,27 @@ def get_user_analysis(db: Session = Depends(get_db), member_id: int = Depends(ge
     # 인증 확인
     if not member_id:
             raise InvalidJWT()
+    
+    # 분석 상태 확인
+    analysis_status = get_analysis_status(db, member_id)
+    if not analysis_status:
+        raise UserDataError("해당 유저에 대한 분석 데이터가 존재하지 않습니다.")
 
-    latest_eat_habits = get_latest_eat_habits(db, member_id)
+    # 분석 진행 중 여부 확인
+    if analysis_status.IS_PENDING:
+        raise UserDataError("해당 유저에 대한 분석이 진행 중입니다.")
+    
+    # 분석 완료 상태 확인
+    if not analysis_status.IS_ANALYZED:
+        raise UserDataError("분석이 아직 완료되지 않았습니다.")
+    
+    # 최신 분석 기록 조회
+    latest_eat_habits = get_latest_eat_habits(db, analysis_status.STATUS_PK)
     if not latest_eat_habits:
-         raise UserDataError("유저 데이터 에러입니다")
+        raise UserDataError("분석 결과를 찾을 수 없습니다.")
+
+    # 분석 날짜
+    analysis_date = analysis_status.ANALYSIS_DATE.strftime("%Y-%m-%d")
     
     # 평균 칼로리 계산
     avg_calorie = calculate_avg_calorie(db, member_id)
@@ -36,6 +53,7 @@ def get_user_analysis(db: Session = Depends(get_db), member_id: int = Depends(ge
     response = {
         "success": True,
         "response": {
+            "analysis_date": analysis_date,
             "avg_calorie" : avg_calorie,
             "weight_prediction": latest_eat_habits.WEIGHT_PREDICTION,
             "advice_carbo": latest_eat_habits.ADVICE_CARBO,
@@ -55,28 +73,27 @@ def get_status_alert(db: Session = Depends(get_db), member_id: int = Depends(get
     # 인증 확인
     if not member_id:
             raise InvalidJWT()
-    
+
     # 분석 상태 조회
     analysis_status = get_analysis_status(db, member_id)
-    
     if not analysis_status:
-        raise UserDataError("식습관 분석 상태를 찾을 수 없습니다.")
+        raise UserDataError("분석 상태 정보를 찾을 수 없습니다.")
     
-    # analysis_status 각 필드에 대해 None 체크
-    if analysis_status.ANALYSIS_DATE is None:
-        raise UserDataError("분석 날짜가 설정되지 않았습니다.")
-    if analysis_status.IS_ANALYZED is None:
-        raise UserDataError("분석 상태가 설정되지 않았습니다.")
+    # 분석 진행 중 여부 확인
+    if analysis_status.IS_PENDING:
+         raise UserDataError("해당 유저에 대한 분석이 진행 중입니다.")
     
-     # 날짜 형식을 "YYYY-MM-DD"로 변환
-    analysis_date_str = analysis_status.ANALYSIS_DATE.strftime("%Y-%m-%d")
+    # 분석 완료 상태 확인
+    if not analysis_status.IS_ANALYZED:
+        raise UserDataError("분석이 아직 완료되지 않았습니다.")
 
-    # 분석 완료 상태 응답
+    analysis_date = analysis_status.ANALYSIS_DATE.strftime("%Y-%m-%d")
+
+    # 분석 완료 응답
     response = {
         "success": True,
         "response": {
-            "status": analysis_status.IS_ANALYZED,
-            "analysis_date": analysis_date_str
+            "analysis_date": analysis_date
         },
         "error": None
     }
