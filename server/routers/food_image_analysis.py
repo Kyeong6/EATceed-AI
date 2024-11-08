@@ -27,6 +27,9 @@ class ImageAnalysisRequest(BaseModel):
 async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int = Depends(get_current_member)):
     
     # 인증 확인
+    """
+    비즈니스 예외처리 : 인증
+    """
     if not member_id:
         raise InvalidJWT()
     
@@ -43,46 +46,50 @@ async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int 
     """
 
     # OpenAI API를 이용한 이미지 분석: 음식명 결과 얻기
-    try:
-        # OpenAI API 호출로 이미지 분석 및 음식명 추출
-        detected_food_data = food_image_analyze(image_base64.food_image)
-        # 문자열로 반환된 데이터 JSON으로 변환
-        detected_food_data = json.loads(detected_food_data)
+    
+    # OpenAI API 호출로 이미지 분석 및 음식명 추출
+    detected_food_data = food_image_analyze(image_base64.food_image)
+    # 문자열로 반환된 데이터 JSON으로 변환
+    detected_food_data = json.loads(detected_food_data)
 
-        # 음식명 분석 결과가 없을 경우
-        if not detected_food_data:
-            raise AnalysisError("음식 분석 결과가 비어있습니다.")
+    # 음식명 분석 결과가 없을 경우
+    """
+    비즈니스 예외처리 : 해당하는 음식을 분석할 수 없습니다. 
+    """
+    if not detected_food_data:
+        raise AnalysisError("음식 분석 결과가 비어있습니다.")
         
-    except json.JSONDecodeError:
-        raise AnalysisError("이미지 분석 결과의 형식이 잘못되었습니다.")
-    except ValidationError as e:
-        raise AnalysisError(f"이미지 분석 중 오류 발생: {str(e)}")
-
     # 유사도 검색 결과 저장할 리스트 초기화
     similar_food_results = []
 
     # 유사도 검색 진행
     for food_data in detected_food_data:
+
         # 데이터 형식 확인 후 인덱싱 접근
         food_name = food_data["food_name"] if isinstance(food_data, dict) else None
 
-        # 음식명 또는 코드 누락
+        # 음식명 누락
+        """
+        만약에 식판사진을 예로 들어서, 5가지 음식 중 1개의 음식에서 food_name이 None이 존재 할 경우 
+        해당 음식을 제외하고는 일단 실행이 되어야 한다.
+        일단 "해당하는 음식을 분석할 수 없습니다" 예외처리로 진행
+        """
+        """
+        비즈니스 예외처리 : 해당하는 음식을 분석할 수 없습니다.
+        """
         if not food_name:
             raise AnalysisError("음식명 데이터가 누락되었습니다.")
         
-        try:
-            # 벡터 임베딩 기반 유사도 검색 진행
-            similar_foods = search_similar_food(food_name)
-            similar_food_list = [{"food_name": food["food_name"], "food_pk": food["food_pk"]} for food in similar_foods]
 
-            # 반환값 구성
-            similar_food_results.append({
-                "detected_food": food_name,
-                "similar_foods": similar_food_list
-            })
+        # 벡터 임베딩 기반 유사도 검색 진행
+        similar_foods = search_similar_food(food_name)
+        similar_food_list = [{"food_name": food["food_name"], "food_pk": food["food_pk"]} for food in similar_foods]
 
-        except Exception as e:
-            raise AnalysisError(f"유사도 분석 중 오류 발생: {str(e)}")
+        # 반환값 구성
+        similar_food_results.append({
+            "detected_food": food_name,
+            "similar_foods": similar_food_list
+        })
     
     response = {
         "success": True,

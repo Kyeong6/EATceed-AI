@@ -27,6 +27,31 @@ redis_client = redis.StrictRedis(
 # 요청 제한 설정
 RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
 
+
+# Redis 기반 요청 제한 함수
+def rate_limit_user(user_id: int):
+    redis_key = f"rate_limit:{user_id}"
+    current_count = redis_client.get(redis_key)
+
+    if current_count:
+        if int(current_count) >= RATE_LIMIT:
+            """
+            비즈니스 예외처리 : 하루 요청 횟수를 초과하였습니다.
+            """
+            raise UserDataError("하루 요청 제한을 초과했습니다.")
+        else:
+            redis_client.incr(redis_key)
+            remaning_requests = RATE_LIMIT - int(current_count) - 1
+    else:
+        redis_client.set(redis_key, 1)
+        # 매일 자정 횟수 리셋
+        next_time = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        redis_client.expireat(redis_key, int(next_time.timestamp()))
+        remaning_requests = RATE_LIMIT - 1
+
+    return remaning_requests
+
+
 # prompt를 불러오기
 def read_prompt(filename):
     with open(filename, 'r', encoding='utf-8') as file:
@@ -69,6 +94,9 @@ def food_image_analyze(image_base64: str):
 
         return result
     except Exception as e:
+        """
+        서버 예외처리 : OpenAI API 관련 에러 및 리스트 형식 x
+        """
         raise AnalysisError("OpenAI API 호출 중 오류 발생")
 
 
@@ -119,25 +147,8 @@ def search_similar_food(query_name):
         return result  
 
     except Exception as e:
+        """
+        서버 예외처리 : 유사도 분석 진행 중 오류 발생
+        """
         raise AnalysisError(f"유사도 분석 중 오류 발생: {str(e)}")
     
-
-# Redis 기반 요청 제한 함수
-def rate_limit_user(user_id: int):
-    redis_key = f"rate_limit:{user_id}"
-    current_count = redis_client.get(redis_key)
-
-    if current_count:
-        if int(current_count) >= RATE_LIMIT:
-            raise UserDataError("하루 요청 제한을 초과했습니다.")
-        else:
-            redis_client.incr(redis_key)
-            remaning_requests = RATE_LIMIT - int(current_count) - 1
-    else:
-        redis_client.set(redis_key, 1)
-        # 매일 자정 횟수 리셋
-        next_time = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-        redis_client.expireat(redis_key, int(next_time.timestamp()))
-        remaning_requests = RATE_LIMIT - 1
-
-    return remaning_requests
