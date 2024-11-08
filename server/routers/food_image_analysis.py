@@ -1,9 +1,9 @@
 import json
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user
 from auth.decoded_token import get_current_member
-from errors.custom_exceptions import InvalidJWT, AnalysisError
+from errors.exception import InvalidJWT, AnalysisError, RateLimitExceeded
 
 router = APIRouter(
     prefix="/v1/ai/food_image_analysis",
@@ -27,9 +27,6 @@ class ImageAnalysisRequest(BaseModel):
 async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int = Depends(get_current_member)):
     
     # 인증 확인
-    """
-    비즈니스 예외처리 : 인증
-    """
     if not member_id:
         raise InvalidJWT()
     
@@ -38,7 +35,10 @@ async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int 
     """
 
     # 남은 요청 횟수 
-    remaining_requests = rate_limit_user(member_id)
+    try:
+        remaining_requests = rate_limit_user(member_id)
+    except RateLimitExceeded as e:
+        raise e
 
     """
     2. food_image_analyze 함수를 통해 얻은 음식명(리스트 값)을 이용해 
@@ -48,16 +48,16 @@ async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int 
     # OpenAI API를 이용한 이미지 분석: 음식명 결과 얻기
     
     # OpenAI API 호출로 이미지 분석 및 음식명 추출
-    detected_food_data = food_image_analyze(image_base64.food_image)
-    # 문자열로 반환된 데이터 JSON으로 변환
-    detected_food_data = json.loads(detected_food_data)
+    try:
+        detected_food_data = food_image_analyze(image_base64.food_image)
+        # 문자열로 반환된 데이터 JSON으로 변환
+        detected_food_data = json.loads(detected_food_data)
 
-    # 음식명 분석 결과가 없을 경우
-    """
-    비즈니스 예외처리 : 해당하는 음식을 분석할 수 없습니다. 
-    """
-    if not detected_food_data:
-        raise AnalysisError("음식 분석 결과가 비어있습니다.")
+        # 음식명 분석 결과가 없을 경우
+        if not detected_food_data:
+            raise AnalysisError()
+    except AnalysisError as e:
+        raise e
         
     # 유사도 검색 결과 저장할 리스트 초기화
     similar_food_results = []
@@ -66,22 +66,20 @@ async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int 
     for food_data in detected_food_data:
 
         # 데이터 형식 확인 후 인덱싱 접근
-        food_name = food_data["food_name"] if isinstance(food_data, dict) else None
+        food_name = food_data.get("food_name")
 
-        # 음식명 누락
+        # 음식명 누락 처리
         """
-        만약에 식판사진을 예로 들어서, 5가지 음식 중 1개의 음식에서 food_name이 None이 존재 할 경우 
-        해당 음식을 제외하고는 일단 실행이 되어야 한다.
-        일단 "해당하는 음식을 분석할 수 없습니다" 예외처리로 진행
-        """
-        """
-        비즈니스 예외처리 : 해당하는 음식을 분석할 수 없습니다.
+        식판사진을 예로 들어서, 5가지 음식 중 1개의 음식에서 food_name에 None이 존재 할 경우 해당 음식을 제외하고 일단 실행이 되어야 한다.
         """
         if not food_name:
-            raise AnalysisError("음식명 데이터가 누락되었습니다.")
+            continue
         
 
         # 벡터 임베딩 기반 유사도 검색 진행
+        """
+        유사도 검색 진행 중 발생하는 예외처리는 서버 예외처리로 정의
+        """
         similar_foods = search_similar_food(food_name)
         similar_food_list = [{"food_name": food["food_name"], "food_pk": food["food_pk"]} for food in similar_foods]
 

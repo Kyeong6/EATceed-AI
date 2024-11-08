@@ -52,3 +52,34 @@ class MemberNotFound(HTTPException):
                 http_status=status.HTTP_404_NOT_FOUND
             )
         )
+
+"""
+음식 이미지 분석
+1. 기능 횟수 제한
+2. 음식 이미지 분석 실패(OpenAI API)
+"""
+
+# 기능 횟수 제한
+class RateLimitExceeded(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=generate_error_response(
+                code="IMAGE_429_1",
+                reason="하루 요청 제한을 초과했습니다.",
+                http_status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        )
+
+
+# 음식 이미지 분석 실패(OpenAI API)
+class AnalysisError(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=generate_error_response(
+                code="IMAGE_400_1",
+                reason="OpenAI API를 이용한 음식 이미지를 분석할 수 없습니다.",
+                http_status=status.HTTP_400_BAD_REQUEST
+            )
+        )
