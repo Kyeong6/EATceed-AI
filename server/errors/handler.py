@@ -1,6 +1,6 @@
 from fastapi import Request, status, HTTPException
 from fastapi.responses import JSONResponse
-from exception import MemberNotFound, EmailNotMatch, InvalidJWT
+from exception import MemberNotFound
 import logging
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,3 @@ def server_exception_handler(request: Request, exc: Exception):
 # 예외 핸들러 등록
 def register_exception_handlers(app):
     app.add_exception_handler(MemberNotFound, business_exception_handler)
-    app.add_exception_handler(EmailNotMatch, business_exception_handler)
-    app.add_exception_handler(InvalidJWT, business_exception_handler)
-    # 기타 비즈니스 예외 등록...
-    app.add_exception_handler(Exception, server_exception_handler)
