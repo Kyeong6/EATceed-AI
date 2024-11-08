@@ -25,34 +25,29 @@ logging.basicConfig(level=logging.DEBUG,
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
-# 환경변수 설정
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-DATA_PATH = os.getenv("DATA_PATH")
-PROMPT_PATH = os.getenv("PROMPT_PATH")
-
-# Elasticsearch 클라이언트 설정
-es = Elasticsearch(
-    settings.ELASTICSEARCH_LOCAL_HOST, 
-    http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD))
-
-
-# Redis 클라이언트 설정
-redis_client = redis.StrictRedis(
-    host=settings.REDIS_LOCAL_HOST,  
-    port=settings.REDIS_PORT,
-    password=settings.REDIS_PASSWORD,
-    decode_responses=True
-)
-
-# 요청 제한 설정
-RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
-
 # Chatgpt API 사용
-client = OpenAI(api_key = OPENAI_API_KEY)
+client = OpenAI(api_key = settings.OPENAI_API_KEY)
+
+
+# --- swagger_auth.py
 
 # HTTP 기본 인증을 사용하는 Security 객체 생성
 security = HTTPBasic()
 
+# Swagger 인증
+def get_current_username(credentials: HTTPBasicCredentials = Depends(security)) -> str:
+    correct_username = secrets.compare_digest(credentials.username, settings.ADMIN_USERNAME)
+    correct_password = secrets.compare_digest(credentials.password, settings.ADMIN_PASSWORD)
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
+
+# --- diet_analysis.py
 # prompt를 불러오기
 def read_prompt(filename):
     with open(filename, 'r', encoding='utf-8') as file:
@@ -89,7 +84,7 @@ def weight_predict(user_data: dict) -> str:
 # 식습관 조언 함수 (조언 프롬프트)
 def analyze_advice(prompt_type, user_data):
     try:
-        prompt_file = os.path.join(PROMPT_PATH, f"{prompt_type}.txt")
+        prompt_file = os.path.join(settings.PROMT_PATH, f"{prompt_type}.txt")
         prompt = read_prompt(prompt_file)
         
         # 프롬프트 변수 설정
@@ -114,9 +109,9 @@ def analyze_advice(prompt_type, user_data):
 # 식습관 분석 함수 (판단 프롬프트)
 def analyze_diet(prompt_type, user_data):
     try:
-        prompt_file = os.path.join(PROMPT_PATH, f"{prompt_type}.txt")
+        prompt_file = os.path.join(settings.PROMPT_PATH, f"{prompt_type}.txt")
         prompt = read_prompt(prompt_file)
-        df = pd.read_csv(os.path.join(DATA_PATH, "diet.csv"))
+        df = pd.read_csv(os.path.join(settings.DATA_PATH, "diet.csv"))
         weight_change = weight_predict(user_data)
         
         # 프롬프트 변수 설정
@@ -141,7 +136,7 @@ def analyze_diet(prompt_type, user_data):
         
         # langchain의 create_pandas_dataframe_agent 사용
         agent = create_pandas_dataframe_agent(
-        ChatOpenAI(temperature=0, model="gpt-4o-mini", openai_api_key=OPENAI_API_KEY),
+        ChatOpenAI(temperature=0, model="gpt-4o-mini", openai_api_key=settings.OPENAI_API_KEY),
         df=df,
         verbose=True,
         agent_type=AgentType.OPENAI_FUNCTIONS,
@@ -205,6 +200,7 @@ def scheduled_task():
         update_flag(db)
 
         # 각 회원의 식습관 분석 수행
+        # 현재는 for문을 통한 순차적으로 분석을 업데이트하지만, 추후에는 비동기적 처리 필요
         member_ids = get_all_member_id(db)
         for member_id in member_ids:
 
@@ -230,12 +226,31 @@ scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
 scheduler.start()
 
 
+# --- food_image_analysis.py
+
+# Elasticsearch 클라이언트 설정
+es = Elasticsearch(
+    settings.ELASTICSEARCH_LOCAL_HOST, 
+    http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD))
+
+
+# Redis 클라이언트 설정
+redis_client = redis.StrictRedis(
+    host=settings.REDIS_LOCAL_HOST,  
+    port=settings.REDIS_PORT,
+    password=settings.REDIS_PASSWORD,
+    decode_responses=True
+)
+
+# 요청 제한 설정
+RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
+
 # 음식 이미지 분석 API: prompt_type은 함수명과 동일
 def food_image_analyze(image_base64: str):
 
     try:
         # prompt 타입 설정
-        prompt_file = os.path.join(PROMPT_PATH, "food_image_analyze.txt")
+        prompt_file = os.path.join(settings.PROMPT_PATH, "food_image_analyze.txt")
         prompt = read_prompt(prompt_file)
 
         # OpenAI API 호출
@@ -337,15 +352,3 @@ def rate_limit_user(user_id: int):
         remaning_requests = RATE_LIMIT - 1
 
     return remaning_requests
-
-# Swagger 인증
-def get_current_username(credentials: HTTPBasicCredentials = Depends(security)) -> str:
-    correct_username = secrets.compare_digest(credentials.username, settings.ADMIN_USERNAME)
-    correct_password = secrets.compare_digest(credentials.password, settings.ADMIN_PASSWORD)
-    if not (correct_username and correct_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-    return credentials.username
