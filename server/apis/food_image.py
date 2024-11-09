@@ -1,12 +1,18 @@
 import os
+import logging
 import redis
 from datetime import datetime, timedelta
 from openai import OpenAI
 from elasticsearch import Elasticsearch
 from core.config import settings
-from errors.business_exception import RateLimitExceeded, ImageAnalysisError, InvalidFoodImageError
+from errors.business_exception import RateLimitExceeded, ImageAnalysisError
 from errors.server_exception import FileAccessError, ServiceConnectionError, ExternalAPIError
 
+# 로그 메시지
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(lineno)d - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger(__name__)
 
 # Chatgpt API 사용
 client = OpenAI(api_key = settings.OPENAI_API_KEY)
@@ -36,6 +42,7 @@ def rate_limit_user(user_id: int):
 
     if current_count:
         if int(current_count) >= RATE_LIMIT:
+            logger.debug(f"음식 이미지 분석 기능 횟수 제한: {user_id}")
             # 기능 횟수 제한 예외처리
             raise RateLimitExceeded()
         redis_client.incr(redis_key)
@@ -66,6 +73,7 @@ def food_image_analyze(image_base64: str):
 
     # prompt 내용 없을 경우
     if not prompt:
+        logger.error("food_image_analyze.txt에 prompt 내용 미존재")
         raise FileAccessError()
 
     # OpenAI API 호출
@@ -95,11 +103,8 @@ def food_image_analyze(image_base64: str):
 
     # 음식명(반환값)이 존재하지 않을 경우
     if not result:
+        logger.error("OpenAI API 음식명 얻기 실패")
         raise ImageAnalysisError()
-    
-    # 음식 이미지를 업로드하지 않았을 경우
-    if result == {"error": True}:
-        raise InvalidFoodImageError()
 
     # 음식 이미지 분석 
     return result
@@ -120,6 +125,7 @@ def search_similar_food(query_name):
     try:
         query_vector = get_embedding(query_name)
     except Exception:
+        logger.error("OpenAI API 텍스트 임베딩 실패")
         raise ExternalAPIError()
 
     # Elasticsearch 벡터 유사도 검색
@@ -142,16 +148,18 @@ def search_similar_food(query_name):
             }
         )
     except Exception:
+        logger.error("Elasticsearch 기능(유사도 분석) 실패")
         raise ServiceConnectionError()
 
     # 검색 결과: food_name, food_pk 추출
     hits = response.get('hits', {}).get('hits', [])
+
+    # 검색 결과가 null 3개일 경우
+    if not hits:
+        logger.info("유사도 검색 결과가 없습니다: null 값 3개 반환")
     
     # 검색 결과가 있을 경우 food_name과 food_pk 추출, 없을 경우 null로 설정: AOS와 논의 필요
     result = [{"food_name": hit["_source"]["food_name"], "food_pk": hit["_source"]["food_pk"]} for hit in hits] if hits else [{"food_name": None, "food_pk": None}]
-
-    # 결과 확인
-    # print("Search result:", result)
     
     # 최대 3개의 결과 반환 또는 null
     return result  
