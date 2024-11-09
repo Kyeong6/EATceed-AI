@@ -1,13 +1,14 @@
 import logging
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from db.models import EatHabits, Member, Food, Meal, MealFood, AnalysisStatus
 from errors.business_exception import MemberNotFound, UserDataError, AnalysisInProgress, AnalysisNotCompleted
-from errors.server_exception import AnalysisSaveError, NoMemberFound
+from errors.server_exception import AnalysisSaveError, NoMemberFound, QueryError
 
 # 로그 메시지
 logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(lineno)d - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ def get_member_body_info(db: Session, member_id: int):
     
     if not (member.MEMBER_GENDER and member.MEMBER_AGE and member.MEMBER_HEIGHT and member.MEMBER_WEIGHT):
         logger.error(f"회원의 신체 정보 조회 중 문제 발생")
-        raise UserDataError()
+        raise QueryError()
 
     return body_info
 
@@ -82,7 +83,7 @@ def get_last_weekend_meals(db: Session, member_id: int):
     
     if not meals:
         logger.error("일주일 간의 식사 기록이 존재하지 않음")
-        raise UserDataError()
+        raise QueryError()
     
     return meals
 
@@ -93,7 +94,7 @@ def get_meal_foods(db: Session, meal_id: int):
 
     if not meal_foods:
         logger.error("먹은 음식과 식사 매칭 실패")
-        raise UserDataError()
+        raise QueryError()
     
     return meal_foods
         
@@ -104,7 +105,7 @@ def get_food_info(db: Session, food_id: int):
     
     if not food:
         logger.error("음식 정보가 존재하지 않음")
-        raise UserDataError()
+        raise QueryError()
     
     return food
 
@@ -225,7 +226,7 @@ def get_user_data(db: Session, member_id: int):
 
     # 식사 등록을 하지 않은 경우(영양 성분 값: 0)
     if all(value == 0 for value in avg_nutrition.values()):
-        logger.error("식사 기록이 없어 평균 영양소 데이터가 비어있습니다.")
+        logger.error(f"식사 기록이 없어 평균 영양소 데이터 미존재: {member_id}")
         raise UserDataError()
 
     return user_data, avg_nutrition["calorie"]
@@ -285,8 +286,8 @@ def update_analysis_status(db: Session, member_id: int):
             )
             db.add(analysis_status)
         db.commit()
-    except Exception as e:
-        logger.error(f"분석 상태 업데이트 중 오류 발생: {e}")
+    except Exception:
+        logger.error(f"분석 상태 업데이트 중 오류 발생")
         raise AnalysisSaveError()
 
 """
@@ -317,16 +318,23 @@ def get_analysis_status(db: Session, member_id: int):
         AnalysisStatus.MEMBER_FK == member_id
     ).first()
 
+    """
+    추후 서버 실행 후 분석 상태 시간 체크 확인 필요
+    """
+
     # 분석 상태 확인
     if not analysis_status:
+        logger.debug(f"분석 상태 미존재: {member_id}")
         raise UserDataError()
     
     # 분석 진행 중 여부 확인
     if analysis_status.IS_PENDING:
+        logger.debug(f"분석 진행 중 대기: {member_id}")
         raise AnalysisInProgress()
     
     # 분석 완료 상태 확인
     if not analysis_status.IS_ANALYZED:
+        logger.debug(f"분석 미완료: {member_id}")
         raise AnalysisNotCompleted()
 
     return analysis_status
