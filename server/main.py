@@ -1,7 +1,7 @@
 from fastapi import FastAPI, status
 from fastapi.responses import UJSONResponse
 from routers import diet_analysis, food_image_analysis, swagger_auth
-from errors.error_hanlder import register_exception_handlers
+from errors.handler import register_exception_handlers
 
 
 app = FastAPI(
@@ -13,20 +13,13 @@ app = FastAPI(
     default_response_class=UJSONResponse,
 )
 
-
-# exceptions
+# handler
 register_exception_handlers(app)
 
-# test.py
-# app.include_router(test) 
 
-# diet_analysis.py
+# router
 app.include_router(diet_analysis.router)
-
-# food_image_analysis.py
 app.include_router(food_image_analysis.router)
-
-# swagger_auth.py
 app.include_router(swagger_auth.router)
 
 # API Server Test

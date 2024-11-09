@@ -1,35 +1,51 @@
-from fastapi import Request, status, HTTPException
+from fastapi import Request, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from exception import MemberNotFound
-import logging
+from errors.business_exception import (
+    InvalidJWT, ExpiredJWT, MemberNotFound, UserDataError, AnalysisInProgress, 
+    AnalysisNotCompleted, RateLimitExceeded, ImageAnalysisError
+)
+from errors.server_exception import (
+    FileAccessError, ExternalAPIError, ServiceConnectionError, AnalysisSaveError,
+    AnalysisProcessError, AnalysisStatusUpdateError
+)
 
-logger = logging.getLogger(__name__)
-
-# 비즈니스 로직 예외 처리
-def business_exception_handler(request: Request, exc: HTTPException):
+# 서버 예외 핸들러
+async def server_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(
         status_code=exc.status_code,
-        content=exc.detail
-    )
-
-# 서버 에러 예외 처리
-def server_exception_handler(request: Request, exc: Exception):
-    # 로그에 자세한 에러 정보 기록
-    logger.error(f"Server error: {exc}", exc_info=True)
-    # 사용자에게는 일반적인 메시지 전달
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "success": False,
             "response": None,
-            "error": {
-                "code": "500",
-                "reason": "서버 오류가 발생했습니다.",
-                "status": "500"
-            }
+            "error": exc.detail
         }
     )
 
-# 예외 핸들러 등록
-def register_exception_handlers(app):
+# 비즈니스 예외 핸들러
+async def business_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "response": None,
+            "error": exc.detail
+        }
+    )
+
+def register_exception_handlers(app: FastAPI):
+    # 서버 예외 핸들러 등록
+    app.add_exception_handler(FileAccessError, server_exception_handler)
+    app.add_exception_handler(ExternalAPIError, server_exception_handler)
+    app.add_exception_handler(ServiceConnectionError, server_exception_handler)
+    app.add_exception_handler(AnalysisSaveError, server_exception_handler)
+    app.add_exception_handler(AnalysisProcessError, server_exception_handler)
+    app.add_exception_handler(AnalysisStatusUpdateError, server_exception_handler)
+
+    # 비즈니스 예외 핸들러 등록
+    app.add_exception_handler(InvalidJWT, business_exception_handler)
+    app.add_exception_handler(ExpiredJWT, business_exception_handler)
     app.add_exception_handler(MemberNotFound, business_exception_handler)
+    app.add_exception_handler(RateLimitExceeded, business_exception_handler)
+    app.add_exception_handler(ImageAnalysisError, business_exception_handler)
+    app.add_exception_handler(UserDataError, business_exception_handler)
+    app.add_exception_handler(AnalysisInProgress, business_exception_handler)
+    app.add_exception_handler(AnalysisNotCompleted, business_exception_handler)
