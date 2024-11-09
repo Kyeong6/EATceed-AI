@@ -6,6 +6,7 @@ from openai import OpenAI
 from datetime import datetime
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from langchain.agents.agent_types import AgentType
 from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
 from langchain_openai import ChatOpenAI
@@ -18,9 +19,17 @@ from errors.server_exception import FileAccessError, ExternalAPIError
 
 # 로그 메시지
 logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(lineno)d - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
+
+# 스케줄러 이벤트 리스너 함수
+def scheduler_listener(event):
+    if event.exception:
+        logger.error(f"스케줄러 작업 실패: {event.job_id} - {event.exception}")
+    else:
+        logger.info(f"스케줄러 작업 성공: {event.job_id}")
+
 
 # Chatgpt API 사용
 client = OpenAI(api_key = settings.OPENAI_API_KEY)
@@ -79,7 +88,7 @@ def analyze_advice(prompt_type, user_data):
     completion = get_completion(prompt)
 
     if not completion:
-        logger("식습관 조언 기능 (외부 호출) 실패")
+        logger.error("식습관 조언 기능 (외부 호출) 실패")
         raise ExternalAPIError()
 
     return completion
@@ -128,10 +137,14 @@ def analyze_diet(prompt_type, user_data):
         raise ExternalAPIError()
 
     return completion
-        
 
 # 최종 식습관 분석 기능 함수
 def full_analysis(db: Session, member_id: int):
+
+    # 분석 시작 시간
+    start_time = datetime.now()
+    logger.info(f"분석 시작 member_id: {member_id} at {start_time}")
+
     # 유저 데이터 활용
     user_data = get_user_data(db, member_id)
 
@@ -163,6 +176,11 @@ def full_analysis(db: Session, member_id: int):
         analysis_status_id=analysis_status.STATUS_PK
     )
 
+    # 분석 종료 시간
+    end_time = datetime.now()
+    elapsed_time = end_time - start_time
+    logger.info(f"분석 완료 member_id: {member_id} at {end_time} (Elapsed time: {elapsed_time})")
+
 # 스케줄링 설정
 def scheduled_task():
     db: Session = next(get_db())
@@ -193,12 +211,15 @@ def scheduled_task():
                     db.query(AnalysisStatus).filter(AnalysisStatus.MEMBER_FK == member_id).update({
                         "IS_PENDING": False
                     })
+                logger.debug(f"식습관 분석 성공 member_id: {member_id}")
             except Exception as e:
                 logger.error(f"식습관 분석 실패 member_id: {member_id} - {e}")
     finally:
         db.close()
 
-# APScheduler 설정
+# APScheduler 설정 및 시작
 scheduler = BackgroundScheduler()
 scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
+scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
 scheduler.start()
+logger.info("스케줄러 시작")
