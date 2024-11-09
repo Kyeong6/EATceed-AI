@@ -1,10 +1,11 @@
 import os
 import redis
 from datetime import datetime, timedelta
-from core.config import settings
-from errors.exception import RateLimitExceeded, AnalysisError
 from openai import OpenAI
 from elasticsearch import Elasticsearch
+from core.config import settings
+from errors.business_exception import RateLimitExceeded, ImageAnalysisError, InvalidFoodImageError
+from errors.server_exception import FileAccessError, ServiceConnectionError, ExternalAPIError
 
 
 # Chatgpt API 사용
@@ -59,39 +60,49 @@ def read_prompt(filename):
 # 음식 이미지 분석 API: prompt_type은 함수명과 동일
 def food_image_analyze(image_base64: str):
 
-    try:
-        # prompt 타입 설정
-        prompt_file = os.path.join(settings.PROMPT_PATH, "food_image_analyze.txt")
-        prompt = read_prompt(prompt_file)
+    # prompt 타입 설정
+    prompt_file = os.path.join(settings.PROMPT_PATH, "food_image_analyze.txt")
+    prompt = read_prompt(prompt_file)
 
-        # OpenAI API 호출
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": prompt},
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}"
-                                # 검증 필요
-                                # "detail": "high"
-                            }
+    # prompt 내용 없을 경우
+    if not prompt:
+        raise FileAccessError()
+
+    # OpenAI API 호출
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": prompt},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_base64}"
+                            # 성능이 좋아지지만, token 소모 큼(tradeoff): 검증 필요
+                            # "detail": "high"
                         }
-                    ]
-                }
-            ],
-            temperature=0.0,
-            max_tokens=300
-        )
-        
-        result = response.choices[0].message.content
+                    }
+                ]
+            }
+        ],
+        temperature=0.0,
+        max_tokens=300
+    )
+    
+    result = response.choices[0].message.content
 
-        return result
-    except Exception:
-        raise AnalysisError()
+    # 음식명(반환값)이 존재하지 않을 경우
+    if not result:
+        raise ImageAnalysisError()
+    
+    # 음식 이미지를 업로드하지 않았을 경우
+    if result == {"error": True}:
+        raise InvalidFoodImageError()
+
+    # 음식 이미지 분석 
+    return result
 
 
 # 제공받은 음식의 벡터 임베딩 값 변환 작업 수행
@@ -102,33 +113,36 @@ def get_embedding(text, model="text-embedding-3-small"):
 
 
 # 벡터 임베딩을 통한 유사도 분석 진행
-"""
-서버 예외처리 필요 : 유사도 분석 진행 중 오류 발생
-"""
 def search_similar_food(query_name):
     index_name = "food_names"
 
     # OpenAI API를 사용하여 임베딩 생성
-    query_vector = get_embedding(query_name)
+    try:
+        query_vector = get_embedding(query_name)
+    except Exception:
+        raise ExternalAPIError()
 
     # Elasticsearch 벡터 유사도 검색
-    response = es.search(
-        index=index_name,
-        body={
-            "query": {
-                "script_score": {
-                    "query": {"match_all": {}},
-                    "script": {
-                        # 코사인 유사도 진행
-                        "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
-                        "params": {"query_vector": query_vector}
+    try:
+        response = es.search(
+            index=index_name,
+            body={
+                "query": {
+                    "script_score": {
+                        "query": {"match_all": {}},
+                        "script": {
+                            # 코사인 유사도 진행
+                            "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
+                            "params": {"query_vector": query_vector}
+                        }
                     }
-                }
-            },
-            # 상위 3개의 유사한 결과 반환
-            "size": 3  
-        }
-    )
+                },
+                # 상위 3개의 유사한 결과 반환
+                "size": 3  
+            }
+        )
+    except Exception:
+        raise ServiceConnectionError()
 
     # 검색 결과: food_name, food_pk 추출
     hits = response.get('hits', {}).get('hits', [])

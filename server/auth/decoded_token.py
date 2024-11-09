@@ -2,7 +2,7 @@ import logging
 import base64
 from fastapi import Depends, Header
 from jose import jwt, ExpiredSignatureError
-from errors.exception import InvalidJWT, ExpiredJWT
+from errors.business_exception import InvalidJWT, ExpiredJWT
 from core.config import settings
 
 # 로그 메시지
@@ -36,16 +36,9 @@ async def get_current_member(token: str = Depends(get_token_from_header)):
     try:
         logger.info(f"Attempting to decode token: {token}")
         decoded_payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
-        
-        if not isinstance(decoded_payload, dict) or "sub" not in decoded_payload:
-            logger.debug("Invalid payload format")
-            # 잘못된 인증 토큰 예외처리
-            raise InvalidJWT()
-
         member_id: int = decoded_payload.get("sub")
 
         if member_id is None:
-            logger.debug("Member Id not found in decoded token")
             # 잘못된 인증 토큰 예외처리
             raise InvalidJWT()
         
@@ -53,6 +46,5 @@ async def get_current_member(token: str = Depends(get_token_from_header)):
         return member_id
 
     except ExpiredSignatureError:
-        logger.error(f"Token expired: {token}")
         # 만료된 인증 토큰 예외처리
         raise ExpiredJWT()

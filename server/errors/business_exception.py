@@ -47,6 +47,7 @@ class MemberNotFound(HTTPException):
 음식 이미지 분석
 1. 기능 횟수 제한
 2. 음식 이미지 분석 실패(OpenAI API)
+3. 음식이 아닌 다른 이미지 업로드
 """
 
 # 기능 횟수 제한
@@ -74,6 +75,18 @@ class ImageAnalysisError(HTTPException):
             }
         )
 
+# 음식이 아닌 다른 이미지 업로드
+class InvalidFoodImageError(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "IMAGE_400_2",
+                "reason": "음식이 아닌 이미지를 업로드하셨습니다.",
+                "status": status.HTTP_400_BAD_REQUEST
+            }
+        )
+
 """
 식습관 분석
 1. 유저의 분석 데이터가 없는 경우
@@ -88,7 +101,7 @@ class UserDataError(HTTPException):
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "code": "DIET_404_1",
-                "reason": "해당 유저에 대한 분석 데이터가 존재하지 않습니다.",
+                "reason": "해당 유저의 분석에 필요한 데이터가 존재하지 않습니다.",
                 "http_status": status.HTTP_404_NOT_FOUND
             }
         )

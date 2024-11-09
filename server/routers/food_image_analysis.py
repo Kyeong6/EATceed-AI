@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user
 from auth.decoded_token import get_current_member
-from errors.exception import InvalidJWT, AnalysisError, RateLimitExceeded
 
 router = APIRouter(
     prefix="/v1/ai/food_image_analysis",
@@ -26,38 +25,22 @@ class ImageAnalysisRequest(BaseModel):
 @router.post("/")
 async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int = Depends(get_current_member)):
     
-    # 인증 확인
-    if not member_id:
-        raise InvalidJWT()
-    
     """
     1. 요청 횟수 제한 구현(Redis)
     """
 
     # 남은 요청 횟수 
-    try:
-        remaining_requests = rate_limit_user(member_id)
-    except RateLimitExceeded as e:
-        raise e
+    remaining_requests = rate_limit_user(member_id)
 
     """
     2. food_image_analyze 함수를 통해 얻은 음식명(리스트 값)을 이용해 
     Elasticsearch 유사도 검색을 진행해 유사도가 높은 음식(들) 반환 진행
     """
 
-    # OpenAI API를 이용한 이미지 분석: 음식명 결과 얻기
-    
     # OpenAI API 호출로 이미지 분석 및 음식명 추출
-    try:
-        detected_food_data = food_image_analyze(image_base64.food_image)
-        # 문자열로 반환된 데이터 JSON으로 변환
-        detected_food_data = json.loads(detected_food_data)
-
-        # 음식명 분석 결과가 없을 경우
-        if not detected_food_data:
-            raise AnalysisError()
-    except AnalysisError as e:
-        raise e
+    detected_food_data = food_image_analyze(image_base64.food_image)
+    # 문자열로 반환된 데이터 JSON으로 변환
+    detected_food_data = json.loads(detected_food_data)
         
     # 유사도 검색 결과 저장할 리스트 초기화
     similar_food_results = []
@@ -77,9 +60,6 @@ async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int 
         
 
         # 벡터 임베딩 기반 유사도 검색 진행
-        """
-        유사도 검색 진행 중 발생하는 예외처리는 서버 예외처리로 정의
-        """
         similar_foods = search_similar_food(food_name)
         similar_food_list = [{"food_name": food["food_name"], "food_pk": food["food_pk"]} for food in similar_foods]
 

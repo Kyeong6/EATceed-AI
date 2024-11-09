@@ -1,7 +1,8 @@
 import secrets
-from fastapi import HTTPException, Depends, status
+from fastapi import Depends
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from core.config import settings
+from errors.business_exception import InvalidJWT
 
 
 # HTTP 기본 인증을 사용하는 Security 객체 생성
@@ -12,9 +13,6 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)) 
     correct_username = secrets.compare_digest(credentials.username, settings.ADMIN_USERNAME)
     correct_password = secrets.compare_digest(credentials.password, settings.ADMIN_PASSWORD)
     if not (correct_username and correct_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Basic"},
-        )
+        raise InvalidJWT()
+        
     return credentials.username

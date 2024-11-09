@@ -71,3 +71,15 @@ class AnalysisStatusUpdateError(HTTPException):
                 "status": status.HTTP_500_INTERNAL_SERVER_ERROR
             }
         )
+
+# 유저가 아무도 존재하지 않을 경우 발생하는 오류
+class NoMemberFound(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "SERVER_500_7",
+                "reason": "Member 테이블에 유저가 아무도 존재하지 않습니다.",
+                "status": status.HTTP_500_INTERNAL_SERVER_ERROR
+            }
+        )
