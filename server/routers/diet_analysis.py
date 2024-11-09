@@ -1,11 +1,10 @@
 # 식습관 분석 router
+import logging
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from db.database import get_db
-from db.crud import get_latest_eat_habits, get_user_data
+from db.crud import get_latest_eat_habits, get_analysis_status, calculate_avg_calorie
 from auth.decoded_token import get_current_member
-import logging
-from errors.custom_exceptions import InvalidJWT, ExpiredJWT, UserDataError
 
 # 로그 메시지
 logging.basicConfig(level=logging.DEBUG,
@@ -18,21 +17,28 @@ router = APIRouter(
     tags=["식습관 분석"]
 )
 
-# 전체 분석 라우터
+# 전체 식습관 분석 라우터
 @router.get("/")
-def full_analysis_route(db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
-    # 인증 확인
-    if not member_id:
-            raise InvalidJWT()
+def get_user_analysis(db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
+    
+    # 분석 유무 확인
+    analysis_status = get_analysis_status(db, member_id)
+    
+    # 최신 분석 기록 조회
+    latest_eat_habits = get_latest_eat_habits(db, analysis_status.STATUS_PK)
 
-    latest_eat_habits = get_latest_eat_habits(db, member_id)
-    if not latest_eat_habits:
-         raise UserDataError("유저 데이터 에러입니다")
-
+    # 평균 칼로리 계산
+    avg_calorie = calculate_avg_calorie(db, member_id)
+    
+    # 분석 날짜
+    analysis_date = analysis_status.ANALYSIS_DATE.strftime("%Y-%m-%d")
+    
+    # 식습관 분석 응답
     response = {
         "success": True,
         "response": {
-            "avg_calorie" : latest_eat_habits.AVG_CALORIE,
+            "analysis_date": analysis_date,
+            "avg_calorie" : avg_calorie,
             "weight_prediction": latest_eat_habits.WEIGHT_PREDICTION,
             "advice_carbo": latest_eat_habits.ADVICE_CARBO,
             "advice_protein": latest_eat_habits.ADVICE_PROTEIN,
@@ -41,4 +47,26 @@ def full_analysis_route(db: Session = Depends(get_db), member_id: int = Depends(
         },
         "error": None
         }
+    return response
+
+
+# 식습관 분석 상태 알림 라우터
+@router.get("/status")
+def get_status_alert(db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
+
+    # 분석 유무 확인
+    analysis_status = get_analysis_status(db, member_id)
+
+    # 분석 날짜
+    analysis_date = analysis_status.ANALYSIS_DATE.strftime("%Y-%m-%d")
+
+    # 알림 응답
+    response = {
+        "success": True,
+        "response": {
+            "analysis_date": analysis_date
+        },
+        "error": None
+    }
+    
     return response
