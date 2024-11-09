@@ -1,6 +1,5 @@
 import os
 import sys
-import requests
 import pytest
 import redis
 from fastapi.testclient import TestClient
