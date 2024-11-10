@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user
 from auth.decoded_token import get_current_member
 from errors.business_exception import InvalidFoodImageError
+from swagger.response_config import analyze_food_image_responses
 
 # 로그 메시지
 logging.basicConfig(level=logging.INFO,
@@ -17,10 +18,10 @@ router = APIRouter(
     tags=["음식 이미지 분석"]
 )
 
-# 음식 이미지 분석 API 테스트
-@router.post("/test")
-async def food_image_analysis_test():
-    return {"success": "성공"}
+# # 음식 이미지 분석 API 테스트
+# @router.post("/test")
+# async def food_image_analysis_test():
+#     return {"success": "성공"}
 
 
 # 리팩토링 과정에서 pydantic 위치 변경 진행할 예정
@@ -30,7 +31,7 @@ class ImageAnalysisRequest(BaseModel):
 
 
 # 음식 이미지 분석 API
-@router.post("/")
+@router.post("/", responses=analyze_food_image_responses)
 async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int = Depends(get_current_member)):
     
     """

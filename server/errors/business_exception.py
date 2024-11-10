@@ -92,6 +92,7 @@ class InvalidFoodImageError(HTTPException):
 1. 유저의 분석 데이터가 없는 경우
 2. 분석 진행 중인 경우
 3. 분석 미완료 상태
+4. 분석 기록이 없는 경우
 """
 
 # 유저의 분석 데이터가 없는 경우
