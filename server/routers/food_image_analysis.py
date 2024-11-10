@@ -7,8 +7,8 @@ from auth.decoded_token import get_current_member
 from errors.business_exception import InvalidFoodImageError
 
 # 로그 메시지
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(lineno)d - %(message)s',
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int 
     # 음식 이미지를 업로드하지 않았을 경우
     if detected_food_data == {"error": True}:
         # 해당 유저를 찾기 위한 예외처리 routers에 포함
-        logger.debug(f"사용자가 음식 이미지를 사용하지 않음: {member_id}")
+        logger.info(f"사용자가 음식 이미지를 사용하지 않음: {member_id}")
         raise InvalidFoodImageError()    
 
     # 문자열로 반환된 데이터 JSON으로 변환

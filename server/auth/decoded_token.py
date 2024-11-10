@@ -7,7 +7,7 @@ from core.config import settings
 
 # 로그 메시지
 logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(lineno)d - %(message)s',
+                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 

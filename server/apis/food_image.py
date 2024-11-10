@@ -9,8 +9,8 @@ from errors.business_exception import RateLimitExceeded, ImageAnalysisError
 from errors.server_exception import FileAccessError, ServiceConnectionError, ExternalAPIError
 
 # 로그 메시지
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(lineno)d - %(message)s',
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ def rate_limit_user(user_id: int):
 
     if current_count:
         if int(current_count) >= RATE_LIMIT:
-            logger.debug(f"음식 이미지 분석 기능 횟수 제한: {user_id}")
+            logger.info(f"음식 이미지 분석 기능 횟수 제한: {user_id}")
             # 기능 횟수 제한 예외처리
             raise RateLimitExceeded()
         redis_client.incr(redis_key)

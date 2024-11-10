@@ -106,14 +106,14 @@ class UserDataError(HTTPException):
             }
         )
 
-# 분석 진행 중인 경우
+# 분석 진행 대기 중인 경우
 class AnalysisInProgress(HTTPException):
     def __init__(self):
         super().__init__(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "code": "DIET_409_1",
-                "reason": "해당 유저에 대한 분석이 진행 중입니다.",
+                "reason": "해당 유저에 대한 분석 진행 대기 중입니다.",
                 "http_status": status.HTTP_409_CONFLICT
             }
         )
@@ -125,7 +125,19 @@ class AnalysisNotCompleted(HTTPException):
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "code": "DIET_404_2",
-                "reason": "분석이 아직 완료되지 않았습니다.",
+                "reason": "해당 유저에 대한 분석이 아직 완료되지 않았습니다.",
+                "http_status": status.HTTP_404_NOT_FOUND
+            }
+        )
+
+# 분석 기록이 없는 경우
+class NoAnalysisRecord(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "DIET_404_3",
+                "reason": "해당 유저에 대한 분석 기록이 존재하지 않습니다.",
                 "http_status": status.HTTP_404_NOT_FOUND
             }
         )

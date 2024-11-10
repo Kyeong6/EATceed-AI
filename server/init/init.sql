@@ -60,7 +60,18 @@ CREATE TABLE MEAL_FOOD_TB
     MEAL_FOOD_G int DEFAULT NULL,
     PRIMARY KEY (MEAL_FOOD_PK),
     FOREIGN KEY  (FOOD_FK) REFERENCES FOOD_TB (FOOD_PK),
-    FOREIGN KEY  (MEAL_FK)REFERENCES MEAL_TB (MEAL_PK)
+    FOREIGN KEY  (MEAL_FK) REFERENCES MEAL_TB (MEAL_PK)
+) ENGINE=InnoDB;
+
+CREATE TABLE ANALYSIS_STATUS_TB
+(
+    STATUS_PK bigint(20) NOT NULL AUTO_INCREMENT,
+    ANALYSIS_DATE datetime(6) NOT NULL,
+    IS_ANALYZED tinyint(1) NOT NULL DEFAULT 0,
+    IS_PENDING tinyint(1) NOT NULL DEFAULT 1,
+    MEMBER_FK bigint(20) DEFAULT NULL,
+    PRIMARY KEY (STATUS_PK),
+    FOREIGN KEY (MEMBER_FK) REFERENCES MEMBER_TB (MEMBER_PK)
 ) ENGINE=InnoDB;
 
 CREATE TABLE EAT_HABITS_TB
@@ -106,17 +117,6 @@ CREATE TABLE NOTIFY_TB
     FOREIGN KEY (MEMBER_FK) REFERENCES MEMBER_TB (MEMBER_PK)
 ) ENGINE=InnoDB;
 
-CREATE TABLE ANALYSIS_STATUS_TB
-(
-    STATUS_PK bigint(20) NOT NULL AUTO_INCREMENT,
-    ANALYSIS_DATE datetime(6) NOT NULL,
-    IS_ANALYZED bit(1) NOT NULL DEFAULT 0,
-    IS_PENDING bit(1) DEFAULT 1,
-    MEMBER_FK bigint(20) DEFAULT NULL,
-    PRIMARY KEY (STATUS_PK),
-    FOREIGN KEY (MEMBER_FK) REFERENCES MEMBER_TB (MEMBER_PK)
-) ENGINE=InnoDB;
-
 
 -- FOOD_TB는 이미 적재되어있는 상태
 -- MEMBER_TB 데이터 적재
@@ -128,6 +128,8 @@ VALUES
 (3, '2024-05-14 08:00:00', '2024-05-14 08:00:00', 'NOT_ACTIVE', 24, '비고 없음', 1, 175.0, 67.0, 70.0, 'wwns1411@naver.com',
         '$2a$10$yCTgvLMTXsLepju7jXYKu.O9bYEe.7G5FJNfNkdin8HiYYvCq82.6', 'MEMBER', true),
 (4, '2023-12-01 08:00:00', '2023-12-01 08:00:00', 'NOT_ACTIVE', 30, '비고 없음', 1, 175.0, 61.0, 66.0, 'abcd123!@gmail.com',
+        '$2a$10$pljAKl0Ad3LnjQyQei.Yz.0Cfcn3Zv/xeBMDwUHDaUrfG8Wm57c56', 'MEMBER', true),
+(5, '2023-12-01 08:00:00', '2023-12-01 08:00:00', 'NOT_ACTIVE', 30, '비고 없음', 1, 175.0, 61.0, 66.0, 'abc13!@gmail.com',
         '$2a$10$pljAKl0Ad3LnjQyQei.Yz.0Cfcn3Zv/xeBMDwUHDaUrfG8Wm57c56', 'MEMBER', true);
         
 -- MEAL_TB 데이터 적재
@@ -168,16 +170,16 @@ VALUES
 (10, '2024-11-03 20:00:00', '2024-11-03 20:00:00', 1, 10, 1.0, 50),  
 (11, '2024-11-03 20:30:00', '2024-11-03 20:30:00', 2, 11, 0.5, 75); 
 
--- EAT_HABITS_TB 데이터 적재
-INSERT INTO EAT_HABITS_TB (EAT_HABITS_PK, ANALYSIS_STATUS_FK, CREATED_DATE, WEIGHT_PREDICTION, ADVICE_CARBO, ADVICE_PROTEIN, ADVICE_FAT, SYNTHESIS_ADVICE)
-VALUES 
-(1, 1, '2024-11-04 00:00:00', '유지', '탄수화물 섭취 증가 권장', '단백질 섭취 증가 권장', '지방 섭취 줄이기 권장', '균형 잡힌 식단 유지 권장'),
-(2, 2, '2024-11-04 00:00:00', '감량', '탄수화물 섭취 줄이기 권장', '단백질 유지', '지방 섭취 증가 권장', '체중 감량을 위한 식단 조정 필요'),
-(3, 3, '2024-11-04 00:00:00', '증가', '탄수화물 섭취 증가 권장', '단백질 섭취 증가 권장', '지방 섭취 증가 권장', '칼로리 흡수 증대를 권장');
-
 -- ANALYSIS_STATUS_TB 데이터 적재
-INSERT INTO ANALYSIS_STATUS_TB (STATUS_PK, ANALYSIS_DATE, IS_ANALYZED, MEMBER_FK)
+INSERT INTO ANALYSIS_STATUS_TB (STATUS_PK, ANALYSIS_DATE, IS_ANALYZED, IS_PENDING, MEMBER_FK)
 VALUES 
-(1, '2024-11-04 00:00:30', 1, 4),  
-(2, '2024-11-04 00:00:30', 1, 2),  
-(3, '2024-11-04 00:00:30', 1, 3);  
+(1, '2024-11-04 00:00:30', 1, 0, 4),  
+(2, '2024-11-04 00:00:30', 1, 0, 2),  
+(3, '2024-11-04 00:00:30', 1, 0, 3);  
+
+-- EAT_HABITS_TB 데이터 적재
+INSERT INTO EAT_HABITS_TB (EAT_HABITS_PK, ANALYSIS_STATUS_FK, WEIGHT_PREDICTION, ADVICE_CARBO, ADVICE_PROTEIN, ADVICE_FAT, SYNTHESIS_ADVICE)
+VALUES 
+(1, 1, '유지', '탄수화물 섭취 증가 권장', '단백질 섭취 증가 권장', '지방 섭취 줄이기 권장', '균형 잡힌 식단 유지 권장'),
+(2, 2, '감량', '탄수화물 섭취 줄이기 권장', '단백질 유지', '지방 섭취 증가 권장', '체중 감량을 위한 식단 조정 필요'),
+(3, 3, '증가', '탄수화물 섭취 증가 권장', '단백질 섭취 증가 권장', '지방 섭취 증가 권장', '칼로리 흡수 증대를 권장');

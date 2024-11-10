@@ -15,7 +15,7 @@ router = APIRouter(
 @router.get("/")
 def get_user_analysis(db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
     
-    # 분석 유무 확인
+    # 최신 분석 상태 확인
     analysis_status = get_analysis_status(db, member_id)
     
     # 최신 분석 기록 조회
