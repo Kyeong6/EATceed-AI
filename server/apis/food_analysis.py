@@ -233,27 +233,27 @@ def scheduled_task():
     finally:
         db.close()
 
-# # 운영: APScheduler 설정 및 시작
-# def start_scheduler():
-#     scheduler = BackgroundScheduler()
-#     scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
-#     scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
-#     scheduler.start()
-#     logger.info("스케줄러 시작")
-
-
-# 테스트: APScheduler 설정 및 시작
-def test_start_scheduler():
-    # 테스트: APScheduler 설정 및 시작
-    run_time = datetime.now() + timedelta(minutes=1)
+# 운영: APScheduler 설정 및 시작
+def start_scheduler():
     scheduler = BackgroundScheduler()
-    # 첫 번째 작업: 1분 뒤 실행
-    scheduler.add_job(scheduled_task, trigger=DateTrigger(run_date=run_time))  
-
-    # 이후 작업: 1분 간격으로 추가 실행
-    scheduler.add_job(scheduled_task, trigger=IntervalTrigger(minutes=3), max_instances=3, misfire_grace_time=30)
-
-    # 리스너 추가 및 스케줄러 시작
+    scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
     scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
     scheduler.start()
-    logger.info("테스트 스케줄러 시작")
+    logger.info("스케줄러 시작")
+
+
+# # 테스트: APScheduler 설정 및 시작
+# def test_start_scheduler():
+#     # 테스트: APScheduler 설정 및 시작
+#     run_time = datetime.now() + timedelta(minutes=1)
+#     scheduler = BackgroundScheduler()
+#     # 첫 번째 작업: 1분 뒤 실행
+#     scheduler.add_job(scheduled_task, trigger=DateTrigger(run_date=run_time))  
+
+#     # 이후 작업: 1분 간격으로 추가 실행
+#     scheduler.add_job(scheduled_task, trigger=IntervalTrigger(minutes=3), max_instances=3, misfire_grace_time=30)
+
+#     # 리스너 추가 및 스케줄러 시작
+#     scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+#     scheduler.start()
+#     logger.info("테스트 스케줄러 시작")

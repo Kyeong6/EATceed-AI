@@ -347,6 +347,18 @@ def get_latest_analysis_date(db: Session, member_id: int):
 
     return latest_completed
 
+# 다른 유저가 현재 분석 중인지를 확인
+def is_analysis_in_progress_for_member(member_id: int, db: Session) -> bool:
+    """
+    다른 유저가 현재 분석 중인지 확인하는 함수
+    """
+    in_progress = db.query(AnalysisStatus).filter(
+        AnalysisStatus.MEMBER_FK != member_id,
+        AnalysisStatus.IS_PENDING == True
+    ).first()
+    
+    return in_progress is not None
+
 
 # 식습관 분석 알림: 분석 상태 조회
 def get_analysis_status(db: Session, member_id: int):
@@ -362,28 +374,38 @@ def get_analysis_status(db: Session, member_id: int):
         raise UserDataError()
     
     # 분석 진행 중 여부 확인
-    if analysis_status.IS_PENDING:
-        logger.info(f"해당 유저는 분석 대기 중입니다.: {member_id}")
-        raise AnalysisInProgress()
+    """
+    IS_ANALYZEd : False
+    IS_PENDING : True
+    """
+    if not analysis_status.IS_ANALYZED and analysis_status.IS_PENDING:
+        
+        # 다른 유저의 분석으로 대기 중인 상태
+        if not is_analysis_in_progress_for_member(member_id, db):
+            logger.info(f"해당 유저는 분석 대기 중입니다.: {member_id}")
+            raise AnalysisInProgress()
+        
+        # 분석이 진행 중인 경우(현재 유저)
+        logger.info(f"해당 유저는 아직 분석이 완료되지 않았습니다.: {member_id}")
+        raise AnalysisNotCompleted()
     
     # 분석이 완료되지 않은 경우
-    if not analysis_status.IS_ANALYZED:
+    """
+    IS_ANALYZEd : False
+    IS_PENDING : False
+    """
+    if not analysis_status.IS_ANALYZED and not analysis_status.IS_PENDING:
+        
         # 최신 성공 분석 조회
         latest_completed = get_latest_analysis_date(db, member_id)
 
-        if analysis_status.IS_PENDING:
-            # 분석이 진행 중인 상태로 완료되지 않은 경우
-            logger.info(f"해당 유저는 아직 분석이 완료되지 않았습니다.: {member_id}")
-            raise AnalysisNotCompleted()
-        
+        # 최근 성공한 분석이 존재한다면 해당 기록 반환
+        if latest_completed:
+            logger.info(f"해당 유저는 최근 성공한 분석 기록 존재합니다.: {member_id}")
+            return latest_completed
         else:
-            # 최근 성공한 분석이 존재
-            if latest_completed:
-                logger.info(f"해당 유저는 최근 성공한 분석 기록 존재합니다.: {member_id}")
-                return latest_completed
-            else:
-                # 완료된 기록이 전혀 없는 경우
-                logger.info(f"해당 유저는 완료된 분석 기록이 없습니다.: {member_id}")
-                raise NoAnalysisRecord()
+            # 완료된 기록이 전혀 없는 경우
+            logger.info(f"해당 유저는 완료된 분석 기록이 없습니다.: {member_id}")
+            raise NoAnalysisRecord()
                 
     return analysis_status
