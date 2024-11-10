@@ -81,7 +81,21 @@ class MealFood(Base):
     food = relationship("Food")
     meal = relationship("Meal", back_populates="meal_foods")
 
-# EAT_HABITS_TB
+# ANALYSIS_STATUS_TB 구성
+class AnalysisStatus(Base):
+    __tablename__ = "ANALYSIS_STATUS_TB"
+
+    STATUS_PK = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    ANALYSIS_DATE = Column(DateTime(6), nullable=False)
+    IS_ANALYZED = Column(Integer, nullable=False, default=0)  # 0 = False, 1 = True
+    IS_PENDING = Column(Integer, nullable=False, default=1)   # 1 = True, 0 = False
+    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK'), nullable=True)
+
+    # Relationships
+    member = relationship("Member", back_populates="analysis_status")
+    eat_habits = relationship("EatHabits", back_populates="analysis_status")
+
+# EAT_HABITS_TB 구성
 class EatHabits(Base):
     __tablename__ = "EAT_HABITS_TB"
 
@@ -93,7 +107,7 @@ class EatHabits(Base):
     ADVICE_FAT = Column(Text, nullable=False)
     SYNTHESIS_ADVICE = Column(Text, nullable=False)
 
-    member = relationship("AnalysisStatus", back_populates="eat_habits")
+    analysis_status = relationship("AnalysisStatus", back_populates="eat_habits")
 
 # HISTORY_TB 구성
 class History(Base):
@@ -126,20 +140,6 @@ class Notify(Base):
 
     # Relationships
     member = relationship("Member", back_populates="notifications")
-
-# ANALYSIS_STATUS_TB 구성
-class AnalysisStatus(Base):
-    __tablename__ = "ANALYSIS_STATUS_TB"
-
-    STATUS_PK = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
-    ANALYSIS_DATE = Column(DateTime(6), nullable=False)
-    IS_ANALYZED = Column(Boolean, nullable=False, default=False)
-    IS_PENDING = Column(Boolean, nullable=False, default=True)
-    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK'), nullable=True)
-
-    # Relationships
-    member = relationship("Member", back_populates="analysis_status")
-    eat_habits = relationship("EatHabits", back_populates="analysis_status")
 
 
 # 테이블을 생성하고 매퍼를 추가

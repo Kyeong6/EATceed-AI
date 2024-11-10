@@ -27,7 +27,7 @@ class Settings:
     # Data
     DATA_PATH = os.getenv("DATA_PATH")
     DOCKER_DATA_PATH = os.getenv("DOCKER_DATA_PATH")
-    PROMPT_PATH = os.getenv("PROMT_PATH")
+    PROMPT_PATH = os.getenv("PROMPT_PATH")
 
     # MariaDB
     RDS_DATABASE_ENDPOINT = os.getenv("RDS_DATABASE_ENDPOINT")
