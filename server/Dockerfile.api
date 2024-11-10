@@ -3,6 +3,7 @@ FROM python:3.9-slim
 
 # 환경 변수 설정
 ENV PYTHONUNBUFFERED 1
+ENV APP_ENV=prod
 
 # 작업 디렉토리 설정
 WORKDIR /app
@@ -19,5 +20,8 @@ COPY . .
 # 앱이 실행될 포트 노출
 EXPOSE 8000
 
+# PYTHONPATH 설정
+ENV PYTHONPATH="${PYTHONPATH}:/app"
+
 # 애플리케이션 실행 명령어
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["python", "main.py"]
