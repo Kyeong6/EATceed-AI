@@ -4,7 +4,6 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from core.config import settings
 from errors.business_exception import InvalidJWT
 
-
 # HTTP 기본 인증을 사용하는 Security 객체 생성
 security = HTTPBasic()
 

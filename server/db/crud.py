@@ -1,13 +1,15 @@
 import logging
+from datetime import datetime, timedelta
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from db.models import EatHabits, Member, Food, Meal, MealFood, AnalysisStatus
-from errors.business_exception import MemberNotFound, UserDataError, AnalysisInProgress, AnalysisNotCompleted
-from errors.server_exception import AnalysisSaveError, NoMemberFound
+from errors.business_exception import MemberNotFound, UserDataError, AnalysisInProgress, AnalysisNotCompleted, NoAnalysisRecord
+from errors.server_exception import AnalysisSaveError, NoMemberFound, QueryError
 
 # 로그 메시지
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
@@ -62,7 +64,7 @@ def get_member_body_info(db: Session, member_id: int):
     
     if not (member.MEMBER_GENDER and member.MEMBER_AGE and member.MEMBER_HEIGHT and member.MEMBER_WEIGHT):
         logger.error(f"회원의 신체 정보 조회 중 문제 발생")
-        raise UserDataError()
+        raise QueryError()
 
     return body_info
 
@@ -81,8 +83,8 @@ def get_last_weekend_meals(db: Session, member_id: int):
         ).all()
     
     if not meals:
-        logger.error("일주일 간의 식사 기록이 존재하지 않음")
-        raise UserDataError()
+        logger.error(f"일주일 간의 식사 기록이 존재하지 않음: {member_id}")
+        raise QueryError()
     
     return meals
 
@@ -93,7 +95,7 @@ def get_meal_foods(db: Session, meal_id: int):
 
     if not meal_foods:
         logger.error("먹은 음식과 식사 매칭 실패")
-        raise UserDataError()
+        raise QueryError()
     
     return meal_foods
         
@@ -104,7 +106,7 @@ def get_food_info(db: Session, food_id: int):
     
     if not food:
         logger.error("음식 정보가 존재하지 않음")
-        raise UserDataError()
+        raise QueryError()
     
     return food
 
@@ -225,10 +227,10 @@ def get_user_data(db: Session, member_id: int):
 
     # 식사 등록을 하지 않은 경우(영양 성분 값: 0)
     if all(value == 0 for value in avg_nutrition.values()):
-        logger.error("식사 기록이 없어 평균 영양소 데이터가 비어있습니다.")
+        logger.error(f"식사 기록이 없어 평균 영양소 데이터 미존재: {member_id}")
         raise UserDataError()
 
-    return user_data, avg_nutrition["calorie"]
+    return user_data
 
 # 식습관 분석 결과값 db에 저장
 def create_eat_habits(db: Session, weight_prediction: str, advice_carbo: str,
@@ -264,28 +266,52 @@ def get_all_member_id(db: Session):
 
     return result
 
+# 식습관 분석 알림: 분석 상태 추가
+def add_analysis_status(db: Session, member_id: int):
+    # 새 분석 상태 추가
+    new_status = AnalysisStatus(
+        MEMBER_FK=member_id,
+        IS_ANALYZED=False,
+        IS_PENDING=True,
+        ANALYSIS_DATE=datetime.now()
+    )
+    db.add(new_status)
+    db.commit()
+    db.refresh(new_status)
+    return new_status
+
+
 # 식습관 분석 알림: 분석 상태 업데이트
-def update_analysis_status(db: Session, member_id: int):
+def update_analysis_status(db: Session, status_id: int):
     try:
+        # logger.info(f"업데이트 for status_id: {status_id} to IS_ANALYZED=True")
+        
+        # 분석 상태 업데이트
         analysis_status = db.query(AnalysisStatus).filter(
-            AnalysisStatus.MEMBER_FK == member_id
+            AnalysisStatus.STATUS_PK == status_id
         ).first()
 
-        # 기록이 이미 존재하여 업데이트
+        # 존재 여부 확인
         if analysis_status:
             analysis_status.IS_ANALYZED = True
+            analysis_status.IS_PENDING = False
             analysis_status.ANALYSIS_DATE = datetime.now()
+            db.commit()
+            # logger.info(f"분석 상태 업데이트 성공 status_id: {status_id}")
+
+            # # 업데이트 확인용 추가 로그
+            # updated_status = db.query(AnalysisStatus).filter(
+            #     AnalysisStatus.STATUS_PK == status_id
+            # ).first()
+            # logger.info(f"확인된 업데이트 상태 status_id: {status_id} - IS_ANALYZED: {updated_status.IS_ANALYZED}, IS_PENDING: {updated_status.IS_PENDING}")
         
         # 기록이 존재하지 않을 경우 새로 추가
         else:
-            analysis_status = AnalysisStatus(
-                MEMBER_FK=member_id,
-                IS_ANALYZED=True,
-                ANALYSIS_DATE=datetime.now()
-            )
-            db.add(analysis_status)
-        db.commit()
+            logger.error(f"분석 상태 업데이트 실패: {status_id}가 존재하지 않습니다")
+            raise AnalysisSaveError()
+        
     except Exception as e:
+        db.rollback()
         logger.error(f"분석 상태 업데이트 중 오류 발생: {e}")
         raise AnalysisSaveError()
 
@@ -310,23 +336,76 @@ def calculate_avg_calorie(db: Session, member_id: int):
     
     return avg_nutrition["calorie"]
 
+
+# 최신 완료된 분석 날짜 조회 함수
+def get_latest_analysis_date(db: Session, member_id: int):
+    latest_completed = db.query(AnalysisStatus).filter(
+        AnalysisStatus.MEMBER_FK == member_id,
+        # 성공한 분석 날짜만 조회: AOS 캐싱
+        AnalysisStatus.IS_ANALYZED == True
+        ).order_by(desc(AnalysisStatus.ANALYSIS_DATE)).first()
+
+    return latest_completed
+
+# 다른 유저가 현재 분석 중인지를 확인
+def is_analysis_in_progress_for_member(member_id: int, db: Session) -> bool:
+    """
+    다른 유저가 현재 분석 중인지 확인하는 함수
+    """
+    in_progress = db.query(AnalysisStatus).filter(
+        AnalysisStatus.MEMBER_FK != member_id,
+        AnalysisStatus.IS_PENDING == True
+    ).first()
+    
+    return in_progress is not None
+
+
 # 식습관 분석 알림: 분석 상태 조회
 def get_analysis_status(db: Session, member_id: int):
     
+    # 가장 최신의 분석 상태 조회(성공 여부 상관없음)
     analysis_status = db.query(AnalysisStatus).filter(
         AnalysisStatus.MEMBER_FK == member_id
     ).first()
 
     # 분석 상태 확인
     if not analysis_status:
+        logger.info(f"해당 유저는 분석 상태 미존재입니다.: {member_id}")
         raise UserDataError()
     
     # 분석 진행 중 여부 확인
-    if analysis_status.IS_PENDING:
-        raise AnalysisInProgress()
-    
-    # 분석 완료 상태 확인
-    if not analysis_status.IS_ANALYZED:
+    """
+    IS_ANALYZEd : False
+    IS_PENDING : True
+    """
+    if not analysis_status.IS_ANALYZED and analysis_status.IS_PENDING:
+        
+        # 다른 유저의 분석으로 대기 중인 상태
+        if not is_analysis_in_progress_for_member(member_id, db):
+            logger.info(f"해당 유저는 분석 대기 중입니다.: {member_id}")
+            raise AnalysisInProgress()
+        
+        # 분석이 진행 중인 경우(현재 유저)
+        logger.info(f"해당 유저는 아직 분석이 완료되지 않았습니다.: {member_id}")
         raise AnalysisNotCompleted()
 
+    # 분석이 완료되지 않은 경우
+    """
+    IS_ANALYZEd : False
+    IS_PENDING : False
+    """
+    if not analysis_status.IS_ANALYZED and not analysis_status.IS_PENDING:
+        
+        # 최신 성공 분석 조회
+        latest_completed = get_latest_analysis_date(db, member_id)
+
+        # 최근 성공한 분석이 존재한다면 해당 기록 반환
+        if latest_completed:
+            logger.info(f"해당 유저는 최근 성공한 분석 기록 존재합니다.: {member_id}")
+            return latest_completed
+        else:
+            # 완료된 기록이 전혀 없는 경우
+            logger.info(f"해당 유저는 완료된 분석 기록이 없습니다.: {member_id}")
+            raise NoAnalysisRecord()
+                
     return analysis_status

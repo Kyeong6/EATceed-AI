@@ -1,18 +1,27 @@
+import logging
 import json
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user
 from auth.decoded_token import get_current_member
+from errors.business_exception import InvalidFoodImageError
+from swagger.response_config import analyze_food_image_responses
+
+# 로그 메시지
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/v1/ai/food_image_analysis",
     tags=["음식 이미지 분석"]
 )
 
-# 음식 이미지 분석 API 테스트
-@router.post("/test")
-async def food_image_analysis_test():
-    return {"success": "성공"}
+# # 음식 이미지 분석 API 테스트
+# @router.post("/test")
+# async def food_image_analysis_test():
+#     return {"success": "성공"}
 
 
 # 리팩토링 과정에서 pydantic 위치 변경 진행할 예정
@@ -22,7 +31,7 @@ class ImageAnalysisRequest(BaseModel):
 
 
 # 음식 이미지 분석 API
-@router.post("/")
+@router.post("/", responses=analyze_food_image_responses)
 async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int = Depends(get_current_member)):
     
     """
@@ -39,6 +48,13 @@ async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int 
 
     # OpenAI API 호출로 이미지 분석 및 음식명 추출
     detected_food_data = food_image_analyze(image_base64.food_image)
+
+    # 음식 이미지를 업로드하지 않았을 경우
+    if detected_food_data == {"error": True}:
+        # 해당 유저를 찾기 위한 예외처리 routers에 포함
+        logger.info(f"사용자가 음식 이미지를 사용하지 않음: {member_id}")
+        raise InvalidFoodImageError()    
+
     # 문자열로 반환된 데이터 JSON으로 변환
     detected_food_data = json.loads(detected_food_data)
         

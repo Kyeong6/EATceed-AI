@@ -1,11 +1,6 @@
 # 환경변수 설정
-from dotenv import load_dotenv
 import os
-import logging
-
-# 로그 설정
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+from dotenv import load_dotenv
 
 # APP_ENV 환경 변수에 따라 개발 / 운영 환경 설정
 """
@@ -32,7 +27,7 @@ class Settings:
     # Data
     DATA_PATH = os.getenv("DATA_PATH")
     DOCKER_DATA_PATH = os.getenv("DOCKER_DATA_PATH")
-    PROMPT_PATH = os.getenv("PROMT_PATH")
+    PROMPT_PATH = os.getenv("PROMPT_PATH")
 
     # MariaDB
     RDS_DATABASE_ENDPOINT = os.getenv("RDS_DATABASE_ENDPOINT")
@@ -57,6 +52,3 @@ class Settings:
     
     
 settings = Settings()
-
-# 환경 변수 값 디버그 출력
-logger.debug(f"DB_URL: {settings.DB_URL}")
