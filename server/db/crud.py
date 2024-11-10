@@ -340,7 +340,9 @@ def calculate_avg_calorie(db: Session, member_id: int):
 # 최신 완료된 분석 날짜 조회 함수
 def get_latest_analysis_date(db: Session, member_id: int):
     latest_completed = db.query(AnalysisStatus).filter(
-        AnalysisStatus.MEMBER_FK == member_id
+        AnalysisStatus.MEMBER_FK == member_id,
+        # 성공한 분석 날짜만 조회: AOS 캐싱
+        AnalysisStatus.IS_ANALYZED == True
         ).order_by(desc(AnalysisStatus.ANALYSIS_DATE)).first()
 
     return latest_completed
@@ -349,6 +351,7 @@ def get_latest_analysis_date(db: Session, member_id: int):
 # 식습관 분석 알림: 분석 상태 조회
 def get_analysis_status(db: Session, member_id: int):
     
+    # 가장 최신의 분석 상태 조회(성공 여부 상관없음)
     analysis_status = db.query(AnalysisStatus).filter(
         AnalysisStatus.MEMBER_FK == member_id
     ).first()
@@ -360,20 +363,27 @@ def get_analysis_status(db: Session, member_id: int):
     
     # 분석 진행 중 여부 확인
     if analysis_status.IS_PENDING:
-        logger.info(f"해당 유저는 분석 진행 중 대기입니다.: {member_id}")
+        logger.info(f"해당 유저는 분석 대기 중입니다.: {member_id}")
         raise AnalysisInProgress()
     
     # 분석이 완료되지 않은 경우
     if not analysis_status.IS_ANALYZED:
-        # 완료된 분석 기록이 있는지 확인
+        # 최신 성공 분석 조회
         latest_completed = get_latest_analysis_date(db, member_id)
-        if not latest_completed:
-            # 완료된 기록이 전혀 없는 경우
-            logger.info(f"해당 유저는 완료된 분석 기록이 없습니다: {member_id}")
-            raise NoAnalysisRecord()  
-        else:
-            # 완료된 기록이 있긴 하지만 현재 상태는 분석 미완료
-            logger.info(f"해당 유저는 아직 분석이 완료되지 않았습니다: {member_id}")
-            raise AnalysisNotCompleted()  
 
+        if analysis_status.IS_PENDING:
+            # 분석이 진행 중인 상태로 완료되지 않은 경우
+            logger.info(f"해당 유저는 아직 분석이 완료되지 않았습니다.: {member_id}")
+            raise AnalysisNotCompleted()
+        
+        else:
+            # 최근 성공한 분석이 존재
+            if latest_completed:
+                logger.info(f"해당 유저는 최근 성공한 분석 기록 존재합니다.: {member_id}")
+                return latest_completed
+            else:
+                # 완료된 기록이 전혀 없는 경우
+                logger.info(f"해당 유저는 완료된 분석 기록이 없습니다.: {member_id}")
+                raise NoAnalysisRecord()
+                
     return analysis_status
