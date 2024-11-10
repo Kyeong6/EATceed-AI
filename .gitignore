@@ -197,6 +197,9 @@ google-services.json
 
 # Database
 db_data
+es_data
+redis_data
+redis.conf
 
 # Data
 *.csv

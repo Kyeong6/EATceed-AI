@@ -29,20 +29,23 @@ class Member(Base):
 
     foods = relationship("Food", back_populates="member")
     meals = relationship("Meal", back_populates="member")
-    eat_habits = relationship("EatHabits", back_populates="member")
     histories = relationship("History", back_populates="member")
+    notifications = relationship("Notify", back_populates="member")
+    analysis_status = relationship("AnalysisStatus", back_populates="member")
 
 # FOOD_TB 구성
 class Food(Base):
     __tablename__ = "FOOD_TB"
 
     FOOD_PK = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    FOOD_CODE = Column(BigInteger, nullable=False)
+    FOOD_NAME = Column(String(255), nullable=False)
+    FOOD_CATEGORY_CODE = Column(Integer, nullable=False)
+    FOOD_SERVING_SIZE = Column(Double, nullable=False)
     FOOD_CALORIE = Column(Double, nullable=False)
     FOOD_CARBOHYDRATE = Column(Double, nullable=False)
-    FOOD_FAT = Column(Double, nullable=False)
-    FOOD_NAME = Column(String(255), nullable=False)
     FOOD_PROTEIN = Column(Double, nullable=False)
-    FOOD_SERVING_SIZE = Column(Double, nullable=False)
+    FOOD_FAT = Column(Double, nullable=False)
     FOOD_SUGARS = Column(Double, nullable=False)
     FOOD_DIETARY_FIBER = Column(Double, nullable=False)
     FOOD_SODIUM = Column(Double, nullable=False)
@@ -78,22 +81,33 @@ class MealFood(Base):
     food = relationship("Food")
     meal = relationship("Meal", back_populates="meal_foods")
 
-# EAT_HABITS_TB
+# ANALYSIS_STATUS_TB 구성
+class AnalysisStatus(Base):
+    __tablename__ = "ANALYSIS_STATUS_TB"
+
+    STATUS_PK = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    ANALYSIS_DATE = Column(DateTime(6), nullable=False)
+    IS_ANALYZED = Column(Integer, nullable=False, default=0)  # 0 = False, 1 = True
+    IS_PENDING = Column(Integer, nullable=False, default=1)   # 1 = True, 0 = False
+    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK'), nullable=True)
+
+    # Relationships
+    member = relationship("Member", back_populates="analysis_status")
+    eat_habits = relationship("EatHabits", back_populates="analysis_status")
+
+# EAT_HABITS_TB 구성
 class EatHabits(Base):
     __tablename__ = "EAT_HABITS_TB"
 
     EAT_HABITS_PK = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
-    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK'), nullable=True)
-    CREATED_DATE = Column(DateTime(6), nullable=False)
-    FLAG = Column(Boolean, nullable=False)
+    ANALYSIS_STATUS_FK = Column(BigInteger, ForeignKey('ANALYSIS_STATUS_TB.STATUS_PK'), nullable=True)
     WEIGHT_PREDICTION = Column(Text, nullable=False)
     ADVICE_CARBO = Column(Text, nullable=False)
     ADVICE_PROTEIN = Column(Text, nullable=False)
     ADVICE_FAT = Column(Text, nullable=False)
     SYNTHESIS_ADVICE = Column(Text, nullable=False)
-    AVG_CALORIE = Column(Double, nullable=False)
 
-    member = relationship("Member", back_populates="eat_habits")
+    analysis_status = relationship("AnalysisStatus", back_populates="eat_habits")
 
 # HISTORY_TB 구성
 class History(Base):
@@ -126,6 +140,7 @@ class Notify(Base):
 
     # Relationships
     member = relationship("Member", back_populates="notifications")
+
 
 # 테이블을 생성하고 매퍼를 추가
 Base.metadata.create_all(bind=engine)
