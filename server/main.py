@@ -28,10 +28,10 @@ app.include_router(diet_analysis.router)
 app.include_router(food_image_analysis.router)
 app.include_router(swagger_auth.router)
 
-# API Server Test
-@app.get("/", status_code=status.HTTP_200_OK)
-async def read_root():
-    return {"Hello" : "World"}
+# # API Server Test
+# @app.get("/", status_code=status.HTTP_200_OK)
+# async def read_root():
+#     return {"Hello" : "World"}
 
 
 # 서버 실행

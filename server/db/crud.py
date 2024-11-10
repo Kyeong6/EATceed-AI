@@ -388,7 +388,7 @@ def get_analysis_status(db: Session, member_id: int):
         # 분석이 진행 중인 경우(현재 유저)
         logger.info(f"해당 유저는 아직 분석이 완료되지 않았습니다.: {member_id}")
         raise AnalysisNotCompleted()
-    
+
     # 분석이 완료되지 않은 경우
     """
     IS_ANALYZEd : False

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from db.database import get_db
 from db.crud import get_latest_eat_habits, get_analysis_status, calculate_avg_calorie
 from auth.decoded_token import get_current_member
+from swagger.response_config import get_user_analysis_responses, get_status_alert_responses
 
 router = APIRouter(
     prefix="/v1/ai/diet_analysis",
@@ -12,7 +13,7 @@ router = APIRouter(
 )
 
 # 전체 식습관 분석 라우터
-@router.get("/")
+@router.get("/", responses=get_user_analysis_responses)
 def get_user_analysis(db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
     
     # 최신 분석 상태 확인
@@ -45,7 +46,7 @@ def get_user_analysis(db: Session = Depends(get_db), member_id: int = Depends(ge
 
 
 # 식습관 분석 상태 알림 라우터
-@router.get("/status")
+@router.get("/status", responses=get_status_alert_responses)
 def get_status_alert(db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
 
     # 분석 유무 확인

@@ -3,7 +3,7 @@ import os
 import logging
 import pandas as pd
 from openai import OpenAI
-from datetime import datetime, timedelta
+from datetime import datetime
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
