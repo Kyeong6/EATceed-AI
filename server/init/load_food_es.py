@@ -2,7 +2,8 @@ import os
 import time
 import pandas as pd
 import logging
-from elasticsearch import Elasticsearch, helpers
+from elasticsearch import Elasticsearch, helpers, ConnectionError
+from errors.server_exception import ExternalAPIError
 
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
@@ -16,10 +17,27 @@ logging.basicConfig(level=logging.INFO,
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
-# Elasticsearch 클라이언트 설정
-es = Elasticsearch(
-    settings.ELASTICSEARCH_HOST, 
-    basic_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD))
+
+# Elasticsearch 클라이언트 설정 및 재시도 로직
+es = None
+retries = 10  # 재시도 횟수
+for i in range(retries):
+    try:
+        es = Elasticsearch(
+            settings.ELASTICSEARCH_HOST,
+            basic_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
+        )
+        # 연결 확인
+        if es.ping():
+            logger.info("Elasticsearch에 성공적으로 연결되었습니다.")
+            break
+    except ConnectionError:
+        logger.warning(f"Elasticsearch 연결 시도 {i+1}/{retries}번 실패. 재시도 중")
+        # 5초 대기
+        time.sleep(5)  
+else:
+    logger.error("Elasticsearch에 연결할 수 없습니다.")
+    raise ExternalAPIError()
 
 
 # 인덱스 이름 설정
@@ -62,7 +80,7 @@ if not es.indices.exists(index=index_name):
             }
         }
     )
-
+    logger.info("Elasticsearch 인덱스가 생성되었습니다.")
 
 
 # 데이터셋 불러오기
