@@ -201,6 +201,8 @@ es_data
 redis_data
 redis.conf
 
-# Data
-*.csv
-*.txt
+# test/data
+server/test/image
+
+# food.csv(대용량)
+server/data/food.csv
