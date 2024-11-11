@@ -1,9 +1,15 @@
 import os
 import time
 import pandas as pd
+import logging
 from core.config import settings
 from elasticsearch import Elasticsearch, helpers
 
+# 로그 메시지
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger(__name__)
 
 # Elasticsearch 클라이언트 설정
 es = Elasticsearch(
@@ -88,5 +94,5 @@ helpers.bulk(es, actions)
 
 # 시간 측정 종료
 end_time = time.time()
-print(f"Elasticsearch 인덱스 '{index_name}'에 음식명과 임베딩이 함께 적재되었습니다.")
-print(f"총 소요 시간: {end_time - start_time:.2f}초")
+logger.info(f"Elasticsearch 인덱스 '{index_name}'에 음식명과 임베딩이 함께 적재되었습니다.")
+logger.info(f"총 소요 시간: {end_time - start_time:.2f}초")
