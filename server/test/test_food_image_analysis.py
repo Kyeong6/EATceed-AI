@@ -10,7 +10,12 @@ sys.path.append(project_root)
 os.chdir(project_root)
 
 from main import app  
-from core.config import settings
+
+# 환경에 따른 설정 파일 로드
+if os.getenv("APP_ENV") == "prod":
+    from core.config_prod import settings
+else:
+    from core.config import settings
 
 # 클라이언트 설정
 client = TestClient(app) 
