@@ -1,6 +1,6 @@
 import uvicorn
 import logging
-from fastapi import FastAPI, status
+from fastapi import FastAPI
 from fastapi.responses import UJSONResponse
 from routers import diet_analysis, food_image_analysis, swagger_auth
 from errors.handler import register_exception_handlers

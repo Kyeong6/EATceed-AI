@@ -1,9 +1,15 @@
+import os
 import logging
 import base64
 from fastapi import Depends, Header
 from jose import jwt, ExpiredSignatureError
 from errors.business_exception import InvalidJWT, ExpiredJWT
-from core.config import settings
+
+# 환경에 따른 설정 파일 로드
+if os.getenv("APP_ENV") == "prod":
+    from core.config_prod import settings
+else:
+    from core.config import settings
 
 # 로그 메시지
 logging.basicConfig(level=logging.DEBUG,

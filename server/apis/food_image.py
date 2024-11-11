@@ -4,9 +4,14 @@ import redis
 from datetime import datetime, timedelta
 from openai import OpenAI
 from elasticsearch import Elasticsearch
-from core.config import settings
 from errors.business_exception import RateLimitExceeded, ImageAnalysisError
 from errors.server_exception import FileAccessError, ServiceConnectionError, ExternalAPIError
+
+# 환경에 따른 설정 파일 로드
+if os.getenv("APP_ENV") == "prod":
+    from core.config_prod import settings
+else:
+    from core.config import settings
 
 # 로그 메시지
 logging.basicConfig(level=logging.INFO,
