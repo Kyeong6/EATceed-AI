@@ -17,15 +17,29 @@ logger = logging.getLogger(__name__)
 # Chatgpt API 사용
 client = OpenAI(api_key = settings.OPENAI_API_KEY)
 
-# Elasticsearch 클라이언트 설정
+# # 개발: Elasticsearch 클라이언트 설정
+# es = Elasticsearch(
+#     settings.ELASTICSEARCH_LOCAL_HOST, 
+#     http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD))
+
+
+# # 개발: Redis 클라이언트 설정
+# redis_client = redis.StrictRedis(
+#     host=settings.REDIS_LOCAL_HOST,  
+#     port=settings.REDIS_PORT,
+#     password=settings.REDIS_PASSWORD,
+#     decode_responses=True
+# )
+
+# 운영: Elasticsearch 클라이언트 설정
 es = Elasticsearch(
-    settings.ELASTICSEARCH_LOCAL_HOST, 
+    settings.ELASTICSEARCH_HOST, 
     http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD))
 
 
-# Redis 클라이언트 설정
+# 운영: Redis 클라이언트 설정
 redis_client = redis.StrictRedis(
-    host=settings.REDIS_LOCAL_HOST,  
+    host=settings.REDIS_HOST,  
     port=settings.REDIS_PORT,
     password=settings.REDIS_PASSWORD,
     decode_responses=True

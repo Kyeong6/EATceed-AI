@@ -1,9 +1,15 @@
 import os
 import time
 import pandas as pd
+import logging
 from core.config import settings
 from elasticsearch import Elasticsearch, helpers
 
+# 로그 메시지
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger(__name__)
 
 # Elasticsearch 클라이언트 설정
 es = Elasticsearch(
@@ -55,7 +61,11 @@ if not es.indices.exists(index=index_name):
 
 
 # 데이터셋 불러오기
-df = pd.read_csv(os.path.join(settings.DOCKER_DATA_PATH, "food.csv"))
+# 개발
+# df = pd.read_csv(os.path.join(settings.DOCKER_DATA_PATH, "food.csv"))
+
+# 운영
+df = pd.read_csv(os.path.join(settings.DATA_PATH, "food.csv"))
 
 
 # '_'(underbar)를 공백으로 대체 : 해당 로직 적용시 pk 값 찾지 못해 사용하지 않음
@@ -84,5 +94,5 @@ helpers.bulk(es, actions)
 
 # 시간 측정 종료
 end_time = time.time()
-print(f"Elasticsearch 인덱스 '{index_name}'에 음식명과 임베딩이 함께 적재되었습니다.")
-print(f"총 소요 시간: {end_time - start_time:.2f}초")
+logger.info(f"Elasticsearch 인덱스 '{index_name}'에 음식명과 임베딩이 함께 적재되었습니다.")
+logger.info(f"총 소요 시간: {end_time - start_time:.2f}초")
