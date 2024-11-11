@@ -1,0 +1,23 @@
+# Dockerfile.data
+FROM python:3.9-slim
+
+# 환경 변수 설정
+ENV PYTHONUNBUFFERED 1
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# requirements.txt 복사
+COPY requirements.txt .
+
+# 종속성 설치
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 애플리케이션 코드 및 데이터 파일 복사
+COPY . .
+
+# PYTHONPATH 설정
+ENV PYTHONPATH="${PYTHONPATH}:/app"
+
+# 데이터 적재 스크립트 실행 명령어
+CMD ["python", "init/load_food_es.py"]
