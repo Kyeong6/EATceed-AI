@@ -1,5 +1,4 @@
 # 식습관 분석 router
-import logging
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from db.database import get_db

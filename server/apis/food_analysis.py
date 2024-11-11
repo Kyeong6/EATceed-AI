@@ -10,11 +10,16 @@ from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from langchain.agents.agent_types import AgentType
 from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
 from langchain_openai import ChatOpenAI
-from core.config import settings
 from db.database import get_db
 from db.models import AnalysisStatus
 from db.crud import create_eat_habits, get_user_data, get_all_member_id, get_last_weekend_meals, add_analysis_status, update_analysis_status
 from errors.server_exception import FileAccessError, ExternalAPIError
+
+# 환경에 따른 설정 파일 로드
+if os.getenv("APP_ENV") == "prod":
+    from core.config_prod import settings
+else:
+    from core.config import settings
 
 
 # 로그 메시지
