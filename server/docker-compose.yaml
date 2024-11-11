@@ -1,11 +1,10 @@
 version: '3'
 
-env_file:
-  - .env.prod
-
 services:
   mariadb:
     image: mariadb:10.6
+    env_file:
+      - .env.prod
     environment:
       - MARIADB_ROOT_PASSWORD=${RDS_DATABASE_PASSWORD}
       - MYSQL_DATABASE=${RDS_DB_NAME}
@@ -16,6 +15,8 @@ services:
 
   redis:
     image: redis:6.2
+    env_file:
+      - .env.prod
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
@@ -24,6 +25,8 @@ services:
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
+    env_file:
+      - .env.prod
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
@@ -42,6 +45,8 @@ services:
 
   kibana:
     image: docker.elastic.co/kibana/kibana:7.17.9
+    env_file:
+      - .env.prod
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
       - ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}
