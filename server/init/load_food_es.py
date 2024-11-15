@@ -83,12 +83,13 @@ if not es.indices.exists(index=index_name):
     logger.info("Elasticsearch 인덱스가 생성되었습니다.")
 
 
-# 데이터셋 불러오기
-# 개발
-# df = pd.read_csv(os.path.join(settings.DOCKER_DATA_PATH, "food.csv"))
-
-# 운영
-df = pd.read_csv(os.path.join(settings.DATA_PATH, "food.csv"))
+# 환경 변수에 따른 데이터셋 경로 설정
+if os.getenv("APP_ENV") == "prod":
+    # 운영
+    df = pd.read_csv(os.path.join(settings.DATA_PATH, "food.csv"))
+else:
+    # 개발
+    df = pd.read_csv(os.path.join(settings.DOCKER_DATA_PATH, "food.csv"))
 
 
 # '_'(underbar)를 공백으로 대체 : 해당 로직 적용시 pk 값 찾지 못해 사용하지 않음

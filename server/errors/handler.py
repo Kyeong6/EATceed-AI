@@ -1,7 +1,7 @@
 from fastapi import Request, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from errors.business_exception import (
-    InvalidJWT, ExpiredJWT, MemberNotFound, RateLimitExceeded, ImageAnalysisError, InvalidFoodImageError,
+    InvalidJWT, ExpiredJWT, MemberNotFound, RateLimitExceeded, ImageProcessingError, ImageAnalysisError, InvalidFoodImageError,
     UserDataError, AnalysisInProgress, AnalysisNotCompleted, NoAnalysisRecord
 )
 from errors.server_exception import (
@@ -47,6 +47,7 @@ def register_exception_handlers(app: FastAPI):
     app.add_exception_handler(ExpiredJWT, business_exception_handler)
     app.add_exception_handler(MemberNotFound, business_exception_handler)
     app.add_exception_handler(RateLimitExceeded, business_exception_handler)
+    app.add_exception_handler(ImageProcessingError, business_exception_handler)
     app.add_exception_handler(ImageAnalysisError, business_exception_handler)
     app.add_exception_handler(InvalidFoodImageError, server_exception_handler)
     app.add_exception_handler(UserDataError, business_exception_handler)

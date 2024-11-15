@@ -260,6 +260,22 @@ analyze_food_image_responses = {
             }
         }
     },
+    422: {
+        "description": "이미지 처리 실패(multi-part 방식 수신 후 base64 인코딩)",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "response": None,
+                    "error": {
+                        "code": "IMAGE_422_1",
+                        "reason": "이미지 처리 및 Base64 인코딩 중 오류가 발생했습니다.",
+                        "http_status": status.HTTP_422_UNPROCESSABLE_ENTITY
+                    }
+                }
+            }
+        }
+    },
     400: {
         "description": "잘못된 요청: 음식 이미지 오류 또는 API 분석 실패",
         "content": {
