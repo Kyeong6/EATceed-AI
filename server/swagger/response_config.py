@@ -77,7 +77,7 @@ get_user_analysis_responses = {
                         }
                     },
                     "NoAnalysisRecord": {
-                        "summary": "분석 기록 없음(분석 성공한 경우 존재하지 않음)",
+                        "summary": "분석 기록 없음(해당 유저는 분석이 성공한 경우가 존재하지 않음)",
                         "value": {
                             "success": False,
                             "response": None,
@@ -175,7 +175,7 @@ get_status_alert_responses = {
                         }
                     },
                     "NoAnalysisRecord": {
-                        "summary": "분석 기록 없음(분석 성공한 경우 존재하지 않음)",
+                        "summary": "분석 기록 없음(해당 유저는 분석이 성공한 경우가 존재하지 않음)",
                         "value": {
                             "success": False,
                             "response": None,
