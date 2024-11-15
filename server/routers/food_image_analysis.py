@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user, process_image_to_base64, get_remaining_requests
 from auth.decoded_token import get_current_member
 from errors.business_exception import InvalidFoodImageError
-from swagger.response_config import analyze_food_image_responses
+from swagger.response_config import analyze_food_image_responses, remaining_requests_check_responses
 
 # 로그 메시지
 logging.basicConfig(level=logging.INFO,
@@ -95,7 +95,7 @@ async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depe
 
 
 # 기능 잔여 횟수 확인 API
-@router.get("/count", responses=analyze_food_image_responses)
+@router.get("/count", responses=remaining_requests_check_responses)
 def remaning_requests_check(member_id: int = Depends(get_current_member)):
 
     """
