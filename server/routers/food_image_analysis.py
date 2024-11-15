@@ -1,7 +1,7 @@
 import logging
 import json
 from fastapi import APIRouter, Depends, File, UploadFile
-from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user, process_image_to_base64
+from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user, process_image_to_base64, get_remaining_requests
 from auth.decoded_token import get_current_member
 from errors.business_exception import InvalidFoodImageError
 from swagger.response_config import analyze_food_image_responses
@@ -24,7 +24,7 @@ router = APIRouter(
 
 
 # 음식 이미지 분석 API
-@router.post("/", responses=analyze_food_image_responses)
+@router.post("/image", responses=analyze_food_image_responses)
 async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depends(get_current_member)):
     
     """
@@ -88,6 +88,24 @@ async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depe
             "remaining_requests": remaining_requests,
             "food_info": similar_food_results
         },
+        "error": None
+    }
+
+    return response
+
+
+# 기능 잔여 횟수 확인 API
+@router.get("/count", responses=analyze_food_image_responses)
+def remaning_requests_check(member_id: int = Depends(get_current_member)):
+
+    """
+    사용자의 남은 요청 횟수 반환
+    """
+    remaining_requests = get_remaining_requests(member_id)
+
+    response = {
+        "success": True,
+        "response": remaining_requests,
         "error": None
     }
 
