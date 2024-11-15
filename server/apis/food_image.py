@@ -201,3 +201,26 @@ def search_similar_food(query_name):
     
     # 최대 3개의 결과 반환 또는 null
     return result  
+
+
+# Redis의 정의된 잔여 기능 횟수 확인
+def get_remaining_requests(member_id: int):
+
+    try:
+        # Redis 키 생성
+        redis_key = f"rate_limit:{member_id}"
+
+        # Redis에서 사용자의 요청 횟수 조회
+        current_count = redis_client.get(redis_key)
+
+        # 요청 횟수가 없다면 기본값 반환(RATE_LIMIT)
+        if current_count is None:
+            return RATE_LIMIT
+
+        # 남은 요청 횟수
+        remaining_requests = max(RATE_LIMIT - int(current_count), 0)
+        return remaining_requests
+
+    except Exception as e:
+        logger.error(f"잔여 기능 횟수 확인 중 에러가 발생했습니다: {e}")
+        raise ServiceConnectionError()

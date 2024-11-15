@@ -12,7 +12,7 @@ router = APIRouter(
 )
 
 # 전체 식습관 분석 라우터
-@router.get("/", responses=get_user_analysis_responses)
+@router.get("/diet", responses=get_user_analysis_responses)
 def get_user_analysis(db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
     
     # 최신 분석 상태 확인
