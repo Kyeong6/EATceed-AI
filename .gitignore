@@ -5,6 +5,7 @@
 .env
 .env.dev
 .env.prod
+.env.public
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
