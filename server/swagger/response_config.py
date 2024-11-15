@@ -310,3 +310,40 @@ analyze_food_image_responses = {
         }
     }
 }
+
+# 기능 잔여 횟수 확인 API 응답 구성
+remaining_requests_check_responses = {
+    401: {
+        "description": "인증 오류: 잘못된 인증 토큰 또는 만료된 인증 토큰",
+        "content": {
+            "application/json": {
+                "examples": {
+                    "InvalidJWT": {
+                        "summary": "잘못된 인증 토큰",
+                        "value": {
+                            "success": False,
+                            "response": None,
+                            "error": {
+                                "code": "SECURITY_401_1",
+                                "reason": "잘못된 인증 토큰 형식입니다.",
+                                "http_status": status.HTTP_401_UNAUTHORIZED
+                            }
+                        }
+                    },
+                    "ExpiredJWT": {
+                        "summary": "만료된 인증 토큰",
+                        "value": {
+                            "success": False,
+                            "response": None,
+                            "error": {
+                                "code": "SECURITY_401_2",
+                                "reason": "인증 토큰이 만료되었습니다.",
+                                "http_status": status.HTTP_401_UNAUTHORIZED
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
