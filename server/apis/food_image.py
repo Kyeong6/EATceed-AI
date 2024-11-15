@@ -1,10 +1,11 @@
 import os
 import logging
+import base64
 import redis
 from datetime import datetime, timedelta
 from openai import OpenAI
 from elasticsearch import Elasticsearch
-from errors.business_exception import RateLimitExceeded, ImageAnalysisError
+from errors.business_exception import RateLimitExceeded, ImageAnalysisError, ImageProcessingError
 from errors.server_exception import FileAccessError, ServiceConnectionError, ExternalAPIError
 
 # 환경에 따른 설정 파일 로드
@@ -22,33 +23,36 @@ logger = logging.getLogger(__name__)
 # Chatgpt API 사용
 client = OpenAI(api_key = settings.OPENAI_API_KEY)
 
-# # 개발: Elasticsearch 클라이언트 설정
-# es = Elasticsearch(
-#     settings.ELASTICSEARCH_LOCAL_HOST, 
-#     http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD))
 
+# 환경에 따른 설정 파일 로드
+if os.getenv("APP_ENV") == "prod":
 
-# # 개발: Redis 클라이언트 설정
-# redis_client = redis.StrictRedis(
-#     host=settings.REDIS_LOCAL_HOST,  
-#     port=settings.REDIS_PORT,
-#     password=settings.REDIS_PASSWORD,
-#     decode_responses=True
-# )
+    # 운영: Elasticsearch 클라이언트 설정
+    es = Elasticsearch(
+        settings.ELASTICSEARCH_HOST,
+        http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
+    )
+    # 운영: Redis 클라이언트 설정
+    redis_client = redis.StrictRedis(
+        host=settings.REDIS_HOST,
+        port=settings.REDIS_PORT,
+        password=settings.REDIS_PASSWORD,
+        decode_responses=True
+    )
+else:
+    # 개발: Elasticsearch 클라이언트 설정
+    es = Elasticsearch(
+        settings.ELASTICSEARCH_LOCAL_HOST, 
+        http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
+    )
+    # 개발: Redis 클라이언트 설정
+    redis_client = redis.StrictRedis(
+        host=settings.REDIS_LOCAL_HOST,  
+        port=settings.REDIS_PORT,
+        password=settings.REDIS_PASSWORD,
+        decode_responses=True
+    )
 
-# 운영: Elasticsearch 클라이언트 설정
-es = Elasticsearch(
-    settings.ELASTICSEARCH_HOST, 
-    http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD))
-
-
-# 운영: Redis 클라이언트 설정
-redis_client = redis.StrictRedis(
-    host=settings.REDIS_HOST,  
-    port=settings.REDIS_PORT,
-    password=settings.REDIS_PASSWORD,
-    decode_responses=True
-)
 
 # 요청 제한 설정
 RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
@@ -74,6 +78,21 @@ def rate_limit_user(user_id: int):
         remaning_requests = RATE_LIMIT - 1
 
     return remaning_requests
+
+
+# Multi-part 방식 이미지 처리 및 Base64 인코딩
+async def process_image_to_base64(file):
+    try:
+        # 파일 읽기
+        file_content = await file.read()
+
+        # Base64 인코딩
+        image_base64 = base64.b64encode(file_content).decode("utf-8")
+        
+        return image_base64
+    except Exception as e:
+        logger.error(f"이미지 파일 처리 및 Base64 인코딩 실패: {e}")
+        raise ImageProcessingError()
 
 
 # prompt를 불러오기
