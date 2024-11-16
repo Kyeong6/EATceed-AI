@@ -14,9 +14,9 @@ logging.getLogger("httpx").setLevel(logging.ERROR)
 
 app = FastAPI(
     title="EATceed",
-    description="API that use food classification and eating habits analysis",
-    docs_url="/ai/v1/api/docs",
-    redoc_url="/ai/v1/api/redocs",
+    description="EATceed 프로젝트 AI 서버",
+    docs_url=None,
+    redoc_url=None,
     openapi_url="/ai/v1/api/openapi.json",
     default_response_class=UJSONResponse,
 )
@@ -41,4 +41,5 @@ if __name__ == "__main__":
     # 스케줄러 시작
     start_scheduler()
   
-    uvicorn.run("main:app", host="127.0.0.1", port=8000)
+    # 외부 접근 가능 포트로 설정
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
