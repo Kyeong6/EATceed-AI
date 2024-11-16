@@ -41,4 +41,5 @@ if __name__ == "__main__":
     # 스케줄러 시작
     start_scheduler()
   
-    uvicorn.run("main:app", host="127.0.0.1", port=8000)
+    # 외부 접근 가능 포트로 설정
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
