@@ -1,5 +1,5 @@
 # python image
-FROM python:3.9-slim
+FROM --platform=linux/amd64 python:3.9-slim
 
 # 환경 변수 
 ENV PYTHONUNBUFFERED 1

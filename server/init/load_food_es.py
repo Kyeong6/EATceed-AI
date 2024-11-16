@@ -74,7 +74,7 @@ if not es.indices.exists(index=index_name):
                     "embedding": {
                         "type": "dense_vector",
                         # 임베딩 차원: 512도 가능
-                        "dims": 1536  
+                        "dims": 512  
                     }
                 }
             }
@@ -82,40 +82,49 @@ if not es.indices.exists(index=index_name):
     )
     logger.info("Elasticsearch 인덱스가 생성되었습니다.")
 
+# 데이터 존재 여부 확인
+count_response = es.count(index=index_name)
+data_count = count_response['count']
 
-# 데이터셋 불러오기
-# 개발
-# df = pd.read_csv(os.path.join(settings.DOCKER_DATA_PATH, "food.csv"))
+if data_count > 0:
+    logger.info(f"Elasticsearch 인덱스 {index_name}에 이미 {data_count}개의 데이터가 존재하여 데이터 적재를 실행하지 않습니다.")
+else:
 
-# 운영
-df = pd.read_csv(os.path.join(settings.DATA_PATH, "food.csv"))
+    # 환경 변수에 따른 데이터셋 경로 설정
+    if os.getenv("APP_ENV") == "prod":
+        # 운영
+        df = pd.read_csv(os.path.join(settings.DATA_PATH, "food.csv"))
+    else:
+        # 개발
+        df = pd.read_csv(os.path.join(settings.DOCKER_DATA_PATH, "food.csv"))
 
 
-# '_'(underbar)를 공백으로 대체 : 해당 로직 적용시 pk 값 찾지 못해 사용하지 않음
-# df['FOOD_NAME'] = df['FOOD_NAME'].str.replace('_', ' ')
+    # '_'(underbar)를 공백으로 대체 : 해당 로직 적용시 pk 값 찾지 못해 사용하지 않음
+    # df['FOOD_NAME'] = df['FOOD_NAME'].str.replace('_', ' ')
 
 
-# Elasticsearch에 적재할 데이터 준비
-actions = []
-for _, row in df.iterrows():
-    # 문자열 형태의 리스트를 리스트로 변환
-    embedding = eval(row['EMBEDDING'])  
-    actions.append({
-        "_index": index_name,
-        "_source": {
-            "food_pk": row["FOOD_PK"],
-            "food_name": row['FOOD_NAME'],
-            "embedding": embedding
-        }
-    })
+    # Elasticsearch에 적재할 데이터 준비
+    actions = []
+    for _, row in df.iterrows():
+        # 문자열 형태의 리스트를 리스트로 변환
+        embedding = eval(row['EMBEDDING'])  
+        actions.append({
+            "_index": index_name,
+            "_source": {
+                "food_pk": row["FOOD_PK"],
+                "food_name": row['FOOD_NAME'],
+                "embedding": embedding
+            }
+        })
 
-# 시간 측정 시작
-start_time = time.time()
+    # 시간 측정 시작
+    start_time = time.time()
 
-# Bulk API로 데이터 적재
-helpers.bulk(es, actions)
+    # Bulk API로 데이터 적재
+    # chunk_size를 사용하여 elasticsearch 부하 조절
+    helpers.bulk(es, actions, chunk_size=1000)
 
-# 시간 측정 종료
-end_time = time.time()
-logger.info(f"Elasticsearch 인덱스 '{index_name}'에 음식명과 임베딩이 함께 적재되었습니다.")
-logger.info(f"총 소요 시간: {end_time - start_time:.2f}초")
+    # 시간 측정 종료
+    end_time = time.time()
+    logger.info(f"Elasticsearch 인덱스 '{index_name}'에 음식명과 임베딩이 함께 적재되었습니다.")
+    logger.info(f"총 소요 시간: {end_time - start_time:.2f}초")

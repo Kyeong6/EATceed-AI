@@ -7,12 +7,12 @@ from auth.decoded_token import get_current_member
 from swagger.response_config import get_user_analysis_responses, get_status_alert_responses
 
 router = APIRouter(
-    prefix="/v1/ai/diet_analysis",
+    prefix="/ai/v1/diet_analysis",
     tags=["식습관 분석"]
 )
 
 # 전체 식습관 분석 라우터
-@router.get("/", responses=get_user_analysis_responses)
+@router.get("/diet", responses=get_user_analysis_responses)
 def get_user_analysis(db: Session = Depends(get_db), member_id: int = Depends(get_current_member)):
     
     # 최신 분석 상태 확인

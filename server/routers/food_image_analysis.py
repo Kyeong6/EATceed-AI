@@ -1,11 +1,10 @@
 import logging
 import json
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
-from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user
+from fastapi import APIRouter, Depends, File, UploadFile
+from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user, process_image_to_base64, get_remaining_requests
 from auth.decoded_token import get_current_member
 from errors.business_exception import InvalidFoodImageError
-from swagger.response_config import analyze_food_image_responses
+from swagger.response_config import analyze_food_image_responses, remaining_requests_check_responses
 
 # 로그 메시지
 logging.basicConfig(level=logging.INFO,
@@ -14,7 +13,7 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/v1/ai/food_image_analysis",
+    prefix="/ai/v1/food_image_analysis",
     tags=["음식 이미지 분석"]
 )
 
@@ -24,15 +23,9 @@ router = APIRouter(
 #     return {"success": "성공"}
 
 
-# 리팩토링 과정에서 pydantic 위치 변경 진행할 예정
-class ImageAnalysisRequest(BaseModel):
-    # base64에 따른 문자열 타입 설정 
-    food_image: str
-
-
 # 음식 이미지 분석 API
-@router.post("/", responses=analyze_food_image_responses)
-async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int = Depends(get_current_member)):
+@router.post("/image", responses=analyze_food_image_responses)
+async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depends(get_current_member)):
     
     """
     1. 요청 횟수 제한 구현(Redis)
@@ -46,8 +39,12 @@ async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int 
     Elasticsearch 유사도 검색을 진행해 유사도가 높은 음식(들) 반환 진행
     """
 
+    # 이미지 처리 및 Base64 인코딩 진행
+    image_base64 = await process_image_to_base64(file)
+
+
     # OpenAI API 호출로 이미지 분석 및 음식명 추출
-    detected_food_data = food_image_analyze(image_base64.food_image)
+    detected_food_data = food_image_analyze(image_base64)
 
     # 음식 이미지를 업로드하지 않았을 경우
     if detected_food_data == {"error": True}:
@@ -91,6 +88,24 @@ async def analyze_food_image(image_base64: ImageAnalysisRequest, member_id: int 
             "remaining_requests": remaining_requests,
             "food_info": similar_food_results
         },
+        "error": None
+    }
+
+    return response
+
+
+# 기능 잔여 횟수 확인 API
+@router.get("/count", responses=remaining_requests_check_responses)
+def remaning_requests_check(member_id: int = Depends(get_current_member)):
+
+    """
+    사용자의 남은 요청 횟수 반환
+    """
+    remaining_requests = get_remaining_requests(member_id)
+
+    response = {
+        "success": True,
+        "response": remaining_requests,
         "error": None
     }
 
