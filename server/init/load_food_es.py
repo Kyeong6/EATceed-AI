@@ -114,7 +114,8 @@ for _, row in df.iterrows():
 start_time = time.time()
 
 # Bulk API로 데이터 적재
-helpers.bulk(es, actions)
+# chunk_size를 사용하여 elasticsearch 부하 조절
+helpers.bulk(es, actions, chunk_size=1000)
 
 # 시간 측정 종료
 end_time = time.time()
