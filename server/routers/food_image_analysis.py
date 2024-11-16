@@ -105,7 +105,9 @@ def remaning_requests_check(member_id: int = Depends(get_current_member)):
 
     response = {
         "success": True,
-        "response": remaining_requests,
+        "response": {
+            "remaining_requests": remaining_requests
+        },
         "error": None
     }
 
