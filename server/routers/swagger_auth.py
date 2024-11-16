@@ -11,9 +11,9 @@ router = APIRouter(
 
 @router.get("/docs", response_class=HTMLResponse)
 async def get_docs(username: str = Depends(get_current_username)) -> HTMLResponse:
-    return get_swagger_ui_html(openapi_url="/v1/ai/api/openapi.json", title="docs")
+    return get_swagger_ui_html(openapi_url="/ai/v1/api/openapi.json", title="docs")
 
 
 @router.get("/redocs", response_class=HTMLResponse)
 async def get_redoc(username: str = Depends(get_current_username)) -> HTMLResponse:
-    return get_redoc_html(openapi_url="/v1/ai/api/openapi.json", title="redoc")
+    return get_redoc_html(openapi_url="/ai/v1/api/openapi.json", title="redoc")
