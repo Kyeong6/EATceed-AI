@@ -5,7 +5,7 @@ from apis.swagger import get_current_username
 
 
 router = APIRouter(
-    prefix="/v1/ai/api",
+    prefix="/ai/v1/api",
     tags=["Swagger"]
 )
 

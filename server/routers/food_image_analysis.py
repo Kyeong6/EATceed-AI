@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/v1/ai/food_image_analysis",
+    prefix="/ai/v1/food_image_analysis",
     tags=["음식 이미지 분석"]
 )
 
