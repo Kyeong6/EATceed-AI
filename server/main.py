@@ -14,9 +14,9 @@ logging.getLogger("httpx").setLevel(logging.ERROR)
 
 app = FastAPI(
     title="EATceed",
-    description="API that use food classification and eating habits analysis",
-    docs_url="/ai/v1/api/docs",
-    redoc_url="/ai/v1/api/redocs",
+    description="EATceed 프로젝트 AI 서버",
+    docs_url=None,
+    redoc_url=None,
     openapi_url="/ai/v1/api/openapi.json",
     default_response_class=UJSONResponse,
 )
