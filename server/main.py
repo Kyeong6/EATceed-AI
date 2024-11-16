@@ -1,6 +1,6 @@
 import uvicorn
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.responses import UJSONResponse
 from routers import diet_analysis, food_image_analysis, swagger_auth
 from errors.handler import register_exception_handlers
@@ -11,14 +11,20 @@ logging.getLogger("openai").setLevel(logging.ERROR)
 logging.getLogger("httpx").setLevel(logging.ERROR)
 
 
+
 app = FastAPI(
     title="EATceed",
     description="API that use food classification and eating habits analysis",
-    docs_url="/v1/ai/api/docs",
-    redoc_url="/v1/ai/api/redocs",
-    openapi_url="/v1/ai/api/openapi.json",
+    docs_url="/ai/v1/api/docs",
+    redoc_url="/ai/v1/api/redocs",
+    openapi_url="/ai/v1/api/openapi.json",
     default_response_class=UJSONResponse,
 )
+
+# API Server Test
+@app.get("/ai", status_code=status.HTTP_200_OK)
+async def read_root():
+    return {"Hello" : "World"}
 
 # handler
 register_exception_handlers(app)
@@ -27,11 +33,6 @@ register_exception_handlers(app)
 app.include_router(diet_analysis.router)
 app.include_router(food_image_analysis.router)
 app.include_router(swagger_auth.router)
-
-# # API Server Test
-# @app.get("/", status_code=status.HTTP_200_OK)
-# async def read_root():
-#     return {"Hello" : "World"}
 
 
 # 서버 실행
