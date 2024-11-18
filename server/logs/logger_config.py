@@ -1,5 +1,7 @@
 import logging
 import os
+import pytz 
+from datetime import datetime 
 
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
@@ -10,6 +12,18 @@ else:
 # 로그 디렉토리 설정
 os.makedirs(settings.LOG_PATH, exist_ok=True)
 
+# Formatter 클래스
+class KSTFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        # 한국 시간대 설정
+        kst = pytz.timezone("Asia/Seoul")
+        dt = datetime.fromtimestamp(record.created, tz=kst)
+        if datefmt:
+            return dt.strftime(datefmt)
+        else:
+            return dt.isoformat()
+
+
 # 공용 로거 생성(INFO, ERROR)
 def get_logger():
     logger = logging.getLogger("app_logger")
@@ -17,8 +31,8 @@ def get_logger():
     if not logger.handlers:  
         logger.setLevel(logging.INFO)  
 
-        # 포매터 설정
-        formatter = logging.Formatter(
+         # 포매터 설정
+        formatter = KSTFormatter(
             '%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
         )

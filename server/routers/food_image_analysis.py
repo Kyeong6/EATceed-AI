@@ -1,4 +1,3 @@
-import logging
 import json
 from fastapi import APIRouter, Depends, File, UploadFile
 from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user, process_image_to_base64, get_remaining_requests
