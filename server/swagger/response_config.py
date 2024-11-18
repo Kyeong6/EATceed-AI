@@ -304,6 +304,18 @@ analyze_food_image_responses = {
                                 "http_status": status.HTTP_400_BAD_REQUEST
                             }
                         }
+                    },
+                    "InvalidFileFormat": {
+                        "summary": "지원되지 않는 파일 형식",
+                        "value": {
+                            "success": False,
+                            "response": None,
+                            "error": {
+                                "code": "IMAGE_400_3",
+                                "reason": "지원되지 않는 파일 형식: image/jpeg, image/png",
+                                "http_status": status.HTTP_400_BAD_REQUEST
+                            }
+                        }
                     }
                 }
             }
