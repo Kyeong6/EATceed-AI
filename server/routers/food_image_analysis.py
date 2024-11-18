@@ -5,12 +5,11 @@ from apis.food_image import food_image_analyze, search_similar_food, rate_limit_
 from auth.decoded_token import get_current_member
 from errors.business_exception import InvalidFileFormat, InvalidFoodImageError
 from swagger.response_config import analyze_food_image_responses, remaining_requests_check_responses
+from logs.logger_config import get_logger
 
-# 로그 메시지
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+# 공용 로거
+logger = get_logger()
+
 
 router = APIRouter(
     prefix="/ai/v1/food_image_analysis",

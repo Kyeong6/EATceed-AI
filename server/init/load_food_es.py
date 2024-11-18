@@ -1,9 +1,9 @@
 import os
 import time
 import pandas as pd
-import logging
 from elasticsearch import Elasticsearch, helpers, ConnectionError
 from errors.server_exception import ExternalAPIError
+from logs.logger_config import get_logger
 
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
@@ -11,11 +11,8 @@ if os.getenv("APP_ENV") == "prod":
 else:
     from core.config import settings
 
-# 로그 메시지
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+# 공용 로거
+logger = get_logger()
 
 
 # Elasticsearch 클라이언트 설정 및 재시도 로직

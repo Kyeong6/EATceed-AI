@@ -5,11 +5,14 @@ from fastapi.responses import UJSONResponse
 from routers import diet_analysis, food_image_analysis, swagger_auth
 from errors.handler import register_exception_handlers
 from apis.food_analysis import start_scheduler
+from logs.logger_config import get_logger
 
-# 커스텀 로거 설정
-logging.getLogger("openai").setLevel(logging.ERROR)
+# 공용 로거
+logger = get_logger()
+
+# 특정 라이브러리 로거 설정
+logging.getLogger("openai").setLevel(logging.ERROR)  
 logging.getLogger("httpx").setLevel(logging.ERROR)
-
 
 
 app = FastAPI(
