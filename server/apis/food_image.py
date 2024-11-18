@@ -1,5 +1,4 @@
 import os
-import logging
 import base64
 import redis
 from datetime import datetime, timedelta
