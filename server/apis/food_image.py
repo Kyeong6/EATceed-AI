@@ -7,6 +7,7 @@ from openai import OpenAI
 from elasticsearch import Elasticsearch
 from errors.business_exception import RateLimitExceeded, ImageAnalysisError, ImageProcessingError
 from errors.server_exception import FileAccessError, ServiceConnectionError, ExternalAPIError
+from logs.logger_config import get_logger
 
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
@@ -14,11 +15,9 @@ if os.getenv("APP_ENV") == "prod":
 else:
     from core.config import settings
 
-# 로그 메시지
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+# 공용 로거
+logger = get_logger()
+
 
 # Chatgpt API 사용
 client = OpenAI(api_key = settings.OPENAI_API_KEY)
@@ -162,8 +161,8 @@ def search_similar_food(query_name):
     # OpenAI API를 사용하여 임베딩 생성
     try:
         query_vector = get_embedding(query_name)
-    except Exception:
-        logger.error("OpenAI API 텍스트 임베딩 실패")
+    except Exception as e:
+        logger.error(f"OpenAI API 텍스트 임베딩 실패: {e}")
         raise ExternalAPIError()
 
     # Elasticsearch 벡터 유사도 검색
@@ -185,8 +184,8 @@ def search_similar_food(query_name):
                 "size": 3  
             }
         )
-    except Exception:
-        logger.error("Elasticsearch 기능(유사도 분석) 실패")
+    except Exception as e:
+        logger.error(f"Elasticsearch 기능(유사도 분석) 실패: {e}")
         raise ServiceConnectionError()
 
     # 검색 결과: food_name, food_pk 추출

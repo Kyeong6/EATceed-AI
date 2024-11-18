@@ -45,11 +45,24 @@ class MemberNotFound(HTTPException):
 
 """
 음식 이미지 분석
-1. 기능 횟수 제한
-2. 이미지 처리 실패
-3. 음식 이미지 분석 실패(OpenAI API)
-4. 음식이 아닌 다른 이미지 업로드
+1. 이미지 형식 에러(수신)
+2. 기능 횟수 제한
+3. 이미지 처리 실패
+4. 음식 이미지 분석 실패(OpenAI API)
+5. 음식이 아닌 다른 이미지 업로드
 """
+# 이미지 파일 형식 에러(수신)
+class InvalidFileFormat(HTTPException):
+    def __init__(self, allowed_types: list):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "IMAGE_400_3",
+                "reason": f"지원되지 않는 파일 형식: {', '.join(allowed_types)}",
+                "http_status": status.HTTP_400_BAD_REQUEST
+            }
+        )
+
 
 # 기능 횟수 제한
 class RateLimitExceeded(HTTPException):

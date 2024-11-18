@@ -1,6 +1,5 @@
 # 메인 로직 작성
 import os
-import logging
 import pandas as pd
 from openai import OpenAI
 from datetime import datetime
@@ -14,6 +13,7 @@ from db.database import get_db
 from db.models import AnalysisStatus
 from db.crud import create_eat_habits, get_user_data, get_all_member_id, get_last_weekend_meals, add_analysis_status, update_analysis_status
 from errors.server_exception import FileAccessError, ExternalAPIError
+from logs.logger_config import get_logger
 
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
@@ -22,11 +22,9 @@ else:
     from core.config import settings
 
 
-# 로그 메시지
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+# 공용 로거 
+logger = get_logger()
+
 
 # 스케줄러 이벤트 리스너 함수
 def scheduler_listener(event):

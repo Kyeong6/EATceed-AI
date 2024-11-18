@@ -3,14 +3,13 @@ import json
 from fastapi import APIRouter, Depends, File, UploadFile
 from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user, process_image_to_base64, get_remaining_requests
 from auth.decoded_token import get_current_member
-from errors.business_exception import InvalidFoodImageError
+from errors.business_exception import InvalidFileFormat, InvalidFoodImageError
 from swagger.response_config import analyze_food_image_responses, remaining_requests_check_responses
+from logs.logger_config import get_logger
 
-# 로그 메시지
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+# 공용 로거
+logger = get_logger()
+
 
 router = APIRouter(
     prefix="/ai/v1/food_image_analysis",
@@ -26,6 +25,13 @@ router = APIRouter(
 # 음식 이미지 분석 API
 @router.post("/image", responses=analyze_food_image_responses)
 async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depends(get_current_member)):
+
+    # 지원하는 파일 형식
+    ALLOWED_FILE_TYPES = ["image/jpeg", "image/png"]
+
+    # 파일 형식 검증
+    if file.content_type not in ALLOWED_FILE_TYPES:
+        raise InvalidFileFormat(allowed_types=ALLOWED_FILE_TYPES)
     
     """
     1. 요청 횟수 제한 구현(Redis)

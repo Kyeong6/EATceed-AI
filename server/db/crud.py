@@ -6,13 +6,10 @@ from datetime import datetime, timedelta
 from db.models import EatHabits, Member, Food, Meal, MealFood, AnalysisStatus
 from errors.business_exception import MemberNotFound, UserDataError, AnalysisInProgress, AnalysisNotCompleted, NoAnalysisRecord
 from errors.server_exception import AnalysisSaveError, NoMemberFound, QueryError
+from logs.logger_config import get_logger
 
-# 로그 메시지
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
-
+# 공용 로거
+logger = get_logger()
 
 """
 식습관 분석 및 홈화면 분석 API : 실행되는 순서대로 정의
