@@ -22,9 +22,9 @@ CREATE TABLE MEMBER_TB
 CREATE TABLE FOOD_TB 
 (
     FOOD_PK            bigint(20)   NOT NULL AUTO_INCREMENT,
-    FOOD_CODE          bigint(20)   NOT NULL,
+    FOOD_CODE          bigint(20)   DEFAULT NULL,
     FOOD_NAME          varchar(255)  NOT NULL,
-    FOOD_CATEGORY_CODE  tinyint      NOT NULL,
+    FOOD_CATEGORY_CODE  tinyint      DEFAULT NULL,
     FOOD_SERVING_SIZE  double        NOT NULL,
     FOOD_CALORIE       double        NOT NULL,
     FOOD_CARBOHYDRATE  double        NOT NULL,

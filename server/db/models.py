@@ -38,9 +38,9 @@ class Food(Base):
     __tablename__ = "FOOD_TB"
 
     FOOD_PK = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
-    FOOD_CODE = Column(BigInteger, nullable=False)
+    FOOD_CODE = Column(BigInteger, nullable=True)
     FOOD_NAME = Column(String(255), nullable=False)
-    FOOD_CATEGORY_CODE = Column(Integer, nullable=False)
+    FOOD_CATEGORY_CODE = Column(Integer, nullable=True)
     FOOD_SERVING_SIZE = Column(Double, nullable=False)
     FOOD_CALORIE = Column(Double, nullable=False)
     FOOD_CARBOHYDRATE = Column(Double, nullable=False)
@@ -122,6 +122,7 @@ class History(Base):
     HISTORY_HEIGHT = Column(Double, nullable=False)
     HISTORY_WEIGHT = Column(Double, nullable=False)
     MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK'), nullable=True)
+    HISTORY_TARGET_WEIGHT = Column(Double, nullable=False)
 
     member = relationship("Member", back_populates="histories")
 

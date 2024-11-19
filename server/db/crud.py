@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime, timedelta
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
