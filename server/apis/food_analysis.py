@@ -15,6 +15,10 @@ from db.crud import create_eat_habits, get_user_data, get_all_member_id, get_las
 from errors.server_exception import FileAccessError, ExternalAPIError
 from logs.logger_config import get_logger
 
+# # 스케줄러 테스트
+# from datetime import timedelta
+# from apscheduler.triggers.interval import IntervalTrigger
+
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
     from core.config_prod import settings
@@ -234,10 +238,18 @@ def scheduled_task():
     finally:
         db.close()
 
-# 운영: APScheduler 설정 및 시작
+# APScheduler 설정 및 시작
 def start_scheduler():
     scheduler = BackgroundScheduler()
+    
+    # # 테스트 진행 스케줄러
+    # start_time = datetime.now() + timedelta(minutes=1)
+    # trigger = IntervalTrigger(start_date=start_time, minutes=5)
+    # scheduler.add_job(scheduled_task, trigger=trigger)
+
+    # 운영용 스케줄러
     scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
+
     scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
     scheduler.start()
     logger.info("스케줄러 시작")
