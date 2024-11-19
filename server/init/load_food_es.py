@@ -70,8 +70,7 @@ if not es.indices.exists(index=index_name):
                     },
                     "embedding": {
                         "type": "dense_vector",
-                        # 임베딩 차원: 512도 가능
-                        "dims": 512  
+                        "dims": 1536  
                     }
                 }
             }

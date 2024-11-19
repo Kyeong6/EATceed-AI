@@ -1,5 +1,4 @@
 import os
-import logging
 import base64
 import redis
 from datetime import datetime, timedelta
@@ -58,25 +57,28 @@ RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
 
 
 # Redis 기반 요청 제한 함수
-def rate_limit_user(user_id: int):
+def rate_limit_user(user_id: int, increment=False):
     redis_key = f"rate_limit:{user_id}"
     current_count = redis_client.get(redis_key)
 
+    # 요청 횟수 확인
     if current_count:
         if int(current_count) >= RATE_LIMIT:
             logger.info(f"음식 이미지 분석 기능 횟수 제한: {user_id}")
             # 기능 횟수 제한 예외처리
             raise RateLimitExceeded()
+    
+    # 요청 성공시에만 증가
+    if increment:
         redis_client.incr(redis_key)
-        remaning_requests = RATE_LIMIT - int(current_count) - 1
-    else:
-        redis_client.set(redis_key, 1)
-        # 매일 자정 횟수 리셋
-        next_time = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-        redis_client.expireat(redis_key, int(next_time.timestamp()))
-        remaning_requests = RATE_LIMIT - 1
+        if current_count is None:
+            # 매일 자정 횟수 리셋
+            next_time = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+            redis_client.expireat(redis_key, int(next_time.timestamp()))
+    
+    remaining_requests = RATE_LIMIT - int(current_count or 0) - (1 if increment else 0)
 
-    return remaning_requests
+    return remaining_requests
 
 
 # Multi-part 방식 이미지 처리 및 Base64 인코딩

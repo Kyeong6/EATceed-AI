@@ -5,7 +5,7 @@ from fastapi.responses import UJSONResponse
 from routers import diet_analysis, food_image_analysis, swagger_auth
 from errors.handler import register_exception_handlers
 from apis.food_analysis import start_scheduler
-from logs.logger_config import get_logger
+from logs.logger_config import get_logger, configure_uvicorn_logger
 
 # 공용 로거
 logger = get_logger()
@@ -40,9 +40,12 @@ app.include_router(swagger_auth.router)
 
 # 서버 실행
 if __name__ == "__main__":
+
+    # Uvicorn 로거 설정
+    configure_uvicorn_logger()
     
     # 스케줄러 시작
     start_scheduler()
-  
+
     # 외부 접근 가능 포트로 설정
     uvicorn.run("main:app", host="0.0.0.0", port=8000)
