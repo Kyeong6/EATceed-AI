@@ -22,6 +22,20 @@ class KSTFormatter(logging.Formatter):
             return dt.strftime(datefmt)
         else:
             return dt.isoformat()
+        
+# Uvicorn 및 APScheduler 로거 설정
+def configure_uvicorn_logger():
+    uvicorn_logger = logging.getLogger("uvicorn")
+    access_logger = logging.getLogger("uvicorn.access")
+    error_logger = logging.getLogger("uvicorn.error")
+    apscheduler_logger = logging.getLogger("apscheduler")  # APScheduler 로거 추가
+
+    # Formatter 설정
+    formatter = KSTFormatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+    for logger in [uvicorn_logger, access_logger, error_logger, apscheduler_logger]:
+        for handler in logger.handlers:
+            handler.setFormatter(formatter)
 
 
 # 공용 로거 생성(INFO, ERROR)
@@ -61,6 +75,12 @@ def get_logger():
                 return record.levelno == logging.ERROR
 
         error_handler.addFilter(ErrorFilter())
-        logger.addHandler(error_handler) 
+        logger.addHandler(error_handler)
+
+        # 콘솔 핸들러 추가
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)  
 
     return logger

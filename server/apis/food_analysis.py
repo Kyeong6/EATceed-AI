@@ -240,7 +240,7 @@ def scheduled_task():
 
 # APScheduler 설정 및 시작
 def start_scheduler():
-    scheduler = BackgroundScheduler()
+    scheduler = BackgroundScheduler(timezone="Asia/Seoul")
     
     # # 테스트 진행 스케줄러
     # start_time = datetime.now() + timedelta(minutes=1)

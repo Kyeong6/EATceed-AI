@@ -34,16 +34,6 @@ def check_db_connection():
     logger.error("DB 연결 모두 실패(재시도 횟수 초과)")
     sys.exit(1)
 
-# 조회 테스트
-def test_member_query(member_id: int):
-    db = next(get_db())  
-    try:
-        member = get_member_info(db, member_id)  
-        logger.info(f"조회된 회원 정보: {member} - 테스트 통과")
-    finally:
-        db.close()
 
 if __name__ == "__main__":
-
     check_db_connection()
-    test_member_query(member_id=1)
