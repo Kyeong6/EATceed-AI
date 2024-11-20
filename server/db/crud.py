@@ -230,7 +230,7 @@ def get_user_data(db: Session, member_id: int):
 
 # 식습관 분석 결과값 db에 저장
 def create_eat_habits(db: Session, weight_prediction: str, advice_carbo: str,
-                      advice_protein: str, advice_fat: str, synthesis_advice: str, analysis_status_id: int):
+                      advice_protein: str, advice_fat: str, synthesis_advice: str, analysis_status_id: int, avg_calorie: float):
     try:
         eat_habits = EatHabits(
             ANALYSIS_STATUS_FK=analysis_status_id,
@@ -239,6 +239,7 @@ def create_eat_habits(db: Session, weight_prediction: str, advice_carbo: str,
             ADVICE_PROTEIN=advice_protein,
             ADVICE_FAT=advice_fat,
             SYNTHESIS_ADVICE=synthesis_advice,
+            AVG_CALORIE=avg_calorie
         )
         
         db.add(eat_habits)
