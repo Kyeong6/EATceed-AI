@@ -165,6 +165,9 @@ def full_analysis(db: Session, member_id: int):
         weight_result = weight_predict(user_data)
         user_data['weight_change'] = weight_result
 
+        # 평균 칼로리 계산
+        avg_calorie = user_data['user'][5]['calorie']
+
         # 각 프롬프트에 대해 분석 수행
         analysis_results = {}
         prompt_types = ['health_advice', 'weight_carbo', 'weight_fat', 'weight_protein']
@@ -184,7 +187,8 @@ def full_analysis(db: Session, member_id: int):
             advice_protein=analysis_results['weight_protein'],
             advice_fat=analysis_results['weight_fat'],
             synthesis_advice=analysis_results['health_advice'],
-            analysis_status_id=analysis_status.STATUS_PK
+            analysis_status_id=analysis_status.STATUS_PK,
+            avg_calorie=avg_calorie
         )
 
         # 분석 성공적으로 완료 후 상태 업데이트(IS_ANALYZED = True)

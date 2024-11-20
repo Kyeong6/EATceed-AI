@@ -106,6 +106,7 @@ class EatHabits(Base):
     ADVICE_PROTEIN = Column(Text, nullable=False)
     ADVICE_FAT = Column(Text, nullable=False)
     SYNTHESIS_ADVICE = Column(Text, nullable=False)
+    AVG_CALORIE = Column(Double, nullable=False)
 
     analysis_status = relationship("AnalysisStatus", back_populates="eat_habits")
 
