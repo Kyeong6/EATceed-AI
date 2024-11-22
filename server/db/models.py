@@ -27,11 +27,11 @@ class Member(Base):
     MEMBER_TARGET_WEIGHT = Column(Double, nullable=True)
     MEMBER_CHECKED = Column(Boolean, nullable=False, default=False)
 
-    foods = relationship("Food", back_populates="member")
-    meals = relationship("Meal", back_populates="member")
-    histories = relationship("History", back_populates="member")
-    notifications = relationship("Notify", back_populates="member")
-    analysis_status = relationship("AnalysisStatus", back_populates="member")
+    foods = relationship("Food", back_populates="member", cascade="all, delete-orphan")
+    meals = relationship("Meal", back_populates="member", cascade="all, delete-orphan")
+    histories = relationship("History", back_populates="member", cascade="all, delete-orphan")
+    notifications = relationship("Notify", back_populates="member", cascade="all, delete-orphan")
+    analysis_status = relationship("AnalysisStatus", back_populates="member", cascade="all, delete-orphan")
 
 # FOOD_TB 구성
 class Food(Base):
@@ -49,7 +49,7 @@ class Food(Base):
     FOOD_SUGARS = Column(Double, nullable=False)
     FOOD_DIETARY_FIBER = Column(Double, nullable=False)
     FOOD_SODIUM = Column(Double, nullable=False)
-    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK'), nullable=True)
+    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK', ondelete='CASCADE'), nullable=True)
 
     member = relationship("Member", back_populates="foods")
 
@@ -61,10 +61,10 @@ class Meal(Base):
     CREATED_DATE = Column(DateTime(6), nullable=False)
     UPDATED_DATE = Column(DateTime(6), nullable=False)
     MEAL_TYPE = Column(String(255), nullable=False)
-    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK'), nullable=True)
+    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK', ondelete='CASCADE'), nullable=True)
 
     member = relationship("Member", back_populates="meals")
-    meal_foods = relationship("MealFood", back_populates="meal")
+    meal_foods = relationship("MealFood", back_populates="meal", cascade="all, delete-orphan")
 
 # MEAL_FOOD_TB 구성
 class MealFood(Base):
@@ -73,8 +73,8 @@ class MealFood(Base):
     MEAL_FOOD_PK = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
     CREATED_DATE = Column(DateTime(6), nullable=False)
     UPDATED_DATE = Column(DateTime(6), nullable=False)
-    FOOD_FK = Column(BigInteger, ForeignKey('FOOD_TB.FOOD_PK'), nullable=True)
-    MEAL_FK = Column(BigInteger, ForeignKey('MEAL_TB.MEAL_PK'), nullable=True)
+    FOOD_FK = Column(BigInteger, ForeignKey('FOOD_TB.FOOD_PK', ondelete='CASCADE'), nullable=True)
+    MEAL_FK = Column(BigInteger, ForeignKey('MEAL_TB.MEAL_PK', ondelete='CASCADE'), nullable=True)
     MEAL_FOOD_MULTIPLE = Column(Double, nullable=True)
     MEAL_FOOD_G = Column(Integer, nullable=True)
 
@@ -89,18 +89,18 @@ class AnalysisStatus(Base):
     ANALYSIS_DATE = Column(DateTime(6), nullable=False)
     IS_ANALYZED = Column(Integer, nullable=False, default=0)  # 0 = False, 1 = True
     IS_PENDING = Column(Integer, nullable=False, default=1)   # 1 = True, 0 = False
-    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK'), nullable=True)
+    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK', ondelete='CASCADE'), nullable=True)
 
     # Relationships
     member = relationship("Member", back_populates="analysis_status")
-    eat_habits = relationship("EatHabits", back_populates="analysis_status")
+    eat_habits = relationship("EatHabits", back_populates="analysis_status", cascade="all, delete-orphan")
 
 # EAT_HABITS_TB 구성
 class EatHabits(Base):
     __tablename__ = "EAT_HABITS_TB"
 
     EAT_HABITS_PK = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
-    ANALYSIS_STATUS_FK = Column(BigInteger, ForeignKey('ANALYSIS_STATUS_TB.STATUS_PK'), nullable=True)
+    ANALYSIS_STATUS_FK = Column(BigInteger, ForeignKey('ANALYSIS_STATUS_TB.STATUS_PK', ondelete='CASCADE'), nullable=True)
     WEIGHT_PREDICTION = Column(Text, nullable=False)
     ADVICE_CARBO = Column(Text, nullable=False)
     ADVICE_PROTEIN = Column(Text, nullable=False)
@@ -122,7 +122,7 @@ class History(Base):
     HISTORY_GENDER = Column(Integer, nullable=False)
     HISTORY_HEIGHT = Column(Double, nullable=False)
     HISTORY_WEIGHT = Column(Double, nullable=False)
-    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK'), nullable=True)
+    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK', ondelete='CASCADE'), nullable=True)
     HISTORY_TARGET_WEIGHT = Column(Double, nullable=False)
 
     member = relationship("Member", back_populates="histories")
@@ -138,7 +138,7 @@ class Notify(Base):
     NOTIFY_IS_READ = Column(Boolean, nullable=False)  # bit(1) -> Boolean으로 매핑
     NOTIFY_CONTENT = Column(String(255), nullable=False)
     NOTIFY_TYPE = Column(String(255), nullable=False)
-    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK'), nullable=True)
+    MEMBER_FK = Column(BigInteger, ForeignKey('MEMBER_TB.MEMBER_PK', ondelete='CASCADE'), nullable=True)
 
     # Relationships
     member = relationship("Member", back_populates="notifications")
