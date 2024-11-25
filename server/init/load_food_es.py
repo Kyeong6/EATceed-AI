@@ -22,7 +22,7 @@ for i in range(retries):
     try:
         es = Elasticsearch(
             settings.ELASTICSEARCH_HOST,
-            basic_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
+            http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
         )
         # 연결 확인
         if es.ping():
