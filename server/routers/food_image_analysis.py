@@ -1,16 +1,14 @@
-import logging
 import json
 from fastapi import APIRouter, Depends, File, UploadFile
 from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user, process_image_to_base64, get_remaining_requests
 from auth.decoded_token import get_current_member
-from errors.business_exception import InvalidFoodImageError
+from errors.business_exception import InvalidFileFormat, InvalidFoodImageError
 from swagger.response_config import analyze_food_image_responses, remaining_requests_check_responses
+from logs.logger_config import get_logger
 
-# 로그 메시지
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+# 공용 로거
+logger = get_logger()
+
 
 router = APIRouter(
     prefix="/ai/v1/food_image_analysis",
@@ -26,22 +24,21 @@ router = APIRouter(
 # 음식 이미지 분석 API
 @router.post("/image", responses=analyze_food_image_responses)
 async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depends(get_current_member)):
-    
-    """
-    1. 요청 횟수 제한 구현(Redis)
-    """
 
-    # 남은 요청 횟수 
-    remaining_requests = rate_limit_user(member_id)
+    # 지원하는 파일 형식
+    ALLOWED_FILE_TYPES = ["image/jpeg", "image/png"]
+
+    # 파일 형식 검증
+    if file.content_type not in ALLOWED_FILE_TYPES:
+        raise InvalidFileFormat(allowed_types=ALLOWED_FILE_TYPES)
 
     """
-    2. food_image_analyze 함수를 통해 얻은 음식명(리스트 값)을 이용해 
+    1. food_image_analyze 함수를 통해 얻은 음식명(리스트 값)을 이용해 
     Elasticsearch 유사도 검색을 진행해 유사도가 높은 음식(들) 반환 진행
     """
 
     # 이미지 처리 및 Base64 인코딩 진행
     image_base64 = await process_image_to_base64(file)
-
 
     # OpenAI API 호출로 이미지 분석 및 음식명 추출
     detected_food_data = food_image_analyze(image_base64)
@@ -82,6 +79,13 @@ async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depe
             "similar_foods": similar_food_list
         })
     
+    """
+    2. 요청 횟수 제한 구현(Redis)
+    """
+
+    # 요청 횟수 차감: 해당 부분에 존재해야지 분석 실패했을 때는 횟수 차감 x
+    remaining_requests = rate_limit_user(member_id, increment=True)
+
     response = {
         "success": True,
         "response": {

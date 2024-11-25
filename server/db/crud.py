@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime, timedelta
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -6,13 +5,10 @@ from datetime import datetime, timedelta
 from db.models import EatHabits, Member, Food, Meal, MealFood, AnalysisStatus
 from errors.business_exception import MemberNotFound, UserDataError, AnalysisInProgress, AnalysisNotCompleted, NoAnalysisRecord
 from errors.server_exception import AnalysisSaveError, NoMemberFound, QueryError
+from logs.logger_config import get_logger
 
-# 로그 메시지
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
-
+# 공용 로거
+logger = get_logger()
 
 """
 식습관 분석 및 홈화면 분석 API : 실행되는 순서대로 정의
@@ -234,7 +230,7 @@ def get_user_data(db: Session, member_id: int):
 
 # 식습관 분석 결과값 db에 저장
 def create_eat_habits(db: Session, weight_prediction: str, advice_carbo: str,
-                      advice_protein: str, advice_fat: str, synthesis_advice: str, analysis_status_id: int):
+                      advice_protein: str, advice_fat: str, synthesis_advice: str, analysis_status_id: int, avg_calorie: float):
     try:
         eat_habits = EatHabits(
             ANALYSIS_STATUS_FK=analysis_status_id,
@@ -243,6 +239,7 @@ def create_eat_habits(db: Session, weight_prediction: str, advice_carbo: str,
             ADVICE_PROTEIN=advice_protein,
             ADVICE_FAT=advice_fat,
             SYNTHESIS_ADVICE=synthesis_advice,
+            AVG_CALORIE=avg_calorie
         )
         
         db.add(eat_habits)

@@ -1,5 +1,4 @@
 import os
-import logging
 import base64
 import redis
 from datetime import datetime, timedelta
@@ -7,6 +6,7 @@ from openai import OpenAI
 from elasticsearch import Elasticsearch
 from errors.business_exception import RateLimitExceeded, ImageAnalysisError, ImageProcessingError
 from errors.server_exception import FileAccessError, ServiceConnectionError, ExternalAPIError
+from logs.logger_config import get_logger
 
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
@@ -14,11 +14,9 @@ if os.getenv("APP_ENV") == "prod":
 else:
     from core.config import settings
 
-# 로그 메시지
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+# 공용 로거
+logger = get_logger()
+
 
 # Chatgpt API 사용
 client = OpenAI(api_key = settings.OPENAI_API_KEY)
@@ -59,25 +57,28 @@ RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
 
 
 # Redis 기반 요청 제한 함수
-def rate_limit_user(user_id: int):
+def rate_limit_user(user_id: int, increment=False):
     redis_key = f"rate_limit:{user_id}"
     current_count = redis_client.get(redis_key)
 
+    # 요청 횟수 확인
     if current_count:
         if int(current_count) >= RATE_LIMIT:
             logger.info(f"음식 이미지 분석 기능 횟수 제한: {user_id}")
             # 기능 횟수 제한 예외처리
             raise RateLimitExceeded()
+    
+    # 요청 성공시에만 증가
+    if increment:
         redis_client.incr(redis_key)
-        remaning_requests = RATE_LIMIT - int(current_count) - 1
-    else:
-        redis_client.set(redis_key, 1)
-        # 매일 자정 횟수 리셋
-        next_time = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-        redis_client.expireat(redis_key, int(next_time.timestamp()))
-        remaning_requests = RATE_LIMIT - 1
+        if current_count is None:
+            # 매일 자정 횟수 리셋
+            next_time = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+            redis_client.expireat(redis_key, int(next_time.timestamp()))
+    
+    remaining_requests = RATE_LIMIT - int(current_count or 0) - (1 if increment else 0)
 
-    return remaning_requests
+    return remaining_requests
 
 
 # Multi-part 방식 이미지 처리 및 Base64 인코딩
@@ -162,8 +163,8 @@ def search_similar_food(query_name):
     # OpenAI API를 사용하여 임베딩 생성
     try:
         query_vector = get_embedding(query_name)
-    except Exception:
-        logger.error("OpenAI API 텍스트 임베딩 실패")
+    except Exception as e:
+        logger.error(f"OpenAI API 텍스트 임베딩 실패: {e}")
         raise ExternalAPIError()
 
     # Elasticsearch 벡터 유사도 검색
@@ -185,8 +186,8 @@ def search_similar_food(query_name):
                 "size": 3  
             }
         )
-    except Exception:
-        logger.error("Elasticsearch 기능(유사도 분석) 실패")
+    except Exception as e:
+        logger.error(f"Elasticsearch 기능(유사도 분석) 실패: {e}")
         raise ServiceConnectionError()
 
     # 검색 결과: food_name, food_pk 추출

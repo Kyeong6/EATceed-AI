@@ -20,6 +20,9 @@ class Settings:
     DATA_PATH = os.getenv("DATA_PATH")
     PROMPT_PATH = os.getenv("PROMPT_PATH")
 
+    # Log
+    LOG_PATH = os.getenv("LOG_PATH") 
+
     # MariaDB
     RDS_DATABASE_ENDPOINT = os.getenv("RDS_DATABASE_ENDPOINT")
     RDS_DATABASE_USERNAME = os.getenv("RDS_DATABASE_USERNAME")

@@ -1,9 +1,9 @@
 import os
 import time
 import pandas as pd
-import logging
 from elasticsearch import Elasticsearch, helpers, ConnectionError
 from errors.server_exception import ExternalAPIError
+from logs.logger_config import get_logger
 
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
@@ -11,11 +11,8 @@ if os.getenv("APP_ENV") == "prod":
 else:
     from core.config import settings
 
-# 로그 메시지
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+# 공용 로거
+logger = get_logger()
 
 
 # Elasticsearch 클라이언트 설정 및 재시도 로직
@@ -25,7 +22,7 @@ for i in range(retries):
     try:
         es = Elasticsearch(
             settings.ELASTICSEARCH_HOST,
-            basic_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
+            http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
         )
         # 연결 확인
         if es.ping():
@@ -73,8 +70,7 @@ if not es.indices.exists(index=index_name):
                     },
                     "embedding": {
                         "type": "dense_vector",
-                        # 임베딩 차원: 512도 가능
-                        "dims": 512  
+                        "dims": 1536  
                     }
                 }
             }

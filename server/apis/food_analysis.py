@@ -1,6 +1,5 @@
 # 메인 로직 작성
 import os
-import logging
 import pandas as pd
 from openai import OpenAI
 from datetime import datetime
@@ -14,6 +13,11 @@ from db.database import get_db
 from db.models import AnalysisStatus
 from db.crud import create_eat_habits, get_user_data, get_all_member_id, get_last_weekend_meals, add_analysis_status, update_analysis_status
 from errors.server_exception import FileAccessError, ExternalAPIError
+from logs.logger_config import get_logger
+
+# # 스케줄러 테스트
+# from datetime import timedelta
+# from apscheduler.triggers.interval import IntervalTrigger
 
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
@@ -22,11 +26,9 @@ else:
     from core.config import settings
 
 
-# 로그 메시지
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+# 공용 로거 
+logger = get_logger()
+
 
 # 스케줄러 이벤트 리스너 함수
 def scheduler_listener(event):
@@ -163,6 +165,9 @@ def full_analysis(db: Session, member_id: int):
         weight_result = weight_predict(user_data)
         user_data['weight_change'] = weight_result
 
+        # 평균 칼로리 계산
+        avg_calorie = user_data['user'][5]['calorie']
+
         # 각 프롬프트에 대해 분석 수행
         analysis_results = {}
         prompt_types = ['health_advice', 'weight_carbo', 'weight_fat', 'weight_protein']
@@ -182,7 +187,8 @@ def full_analysis(db: Session, member_id: int):
             advice_protein=analysis_results['weight_protein'],
             advice_fat=analysis_results['weight_fat'],
             synthesis_advice=analysis_results['health_advice'],
-            analysis_status_id=analysis_status.STATUS_PK
+            analysis_status_id=analysis_status.STATUS_PK,
+            avg_calorie=avg_calorie
         )
 
         # 분석 성공적으로 완료 후 상태 업데이트(IS_ANALYZED = True)
@@ -236,10 +242,18 @@ def scheduled_task():
     finally:
         db.close()
 
-# 운영: APScheduler 설정 및 시작
+# APScheduler 설정 및 시작
 def start_scheduler():
-    scheduler = BackgroundScheduler()
+    scheduler = BackgroundScheduler(timezone="Asia/Seoul")
+    
+    # # 테스트 진행 스케줄러
+    # start_time = datetime.now() + timedelta(minutes=1)
+    # trigger = IntervalTrigger(start_date=start_time, minutes=5)
+    # scheduler.add_job(scheduled_task, trigger=trigger)
+
+    # 운영용 스케줄러
     scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
+
     scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
     scheduler.start()
     logger.info("스케줄러 시작")
