@@ -77,7 +77,7 @@ get_user_analysis_responses = {
                         }
                     },
                     "NoAnalysisRecord": {
-                        "summary": "분석 기록 없음(분석 성공한 경우 존재하지 않음)",
+                        "summary": "분석 기록 없음(해당 유저는 분석이 성공한 경우가 존재하지 않음)",
                         "value": {
                             "success": False,
                             "response": None,
@@ -175,7 +175,7 @@ get_status_alert_responses = {
                         }
                     },
                     "NoAnalysisRecord": {
-                        "summary": "분석 기록 없음(분석 성공한 경우 존재하지 않음)",
+                        "summary": "분석 기록 없음(해당 유저는 분석이 성공한 경우가 존재하지 않음)",
                         "value": {
                             "success": False,
                             "response": None,
@@ -260,6 +260,22 @@ analyze_food_image_responses = {
             }
         }
     },
+    422: {
+        "description": "이미지 처리 실패(multi-part 방식 수신 후 base64 인코딩)",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "response": None,
+                    "error": {
+                        "code": "IMAGE_422_1",
+                        "reason": "이미지 처리 및 Base64 인코딩 중 오류가 발생했습니다.",
+                        "http_status": status.HTTP_422_UNPROCESSABLE_ENTITY
+                    }
+                }
+            }
+        }
+    },
     400: {
         "description": "잘못된 요청: 음식 이미지 오류 또는 API 분석 실패",
         "content": {
@@ -286,6 +302,55 @@ analyze_food_image_responses = {
                                 "code": "IMAGE_400_1",
                                 "reason": "OpenAI API를 이용한 음식 이미지를 분석할 수 없습니다.",
                                 "http_status": status.HTTP_400_BAD_REQUEST
+                            }
+                        }
+                    },
+                    "InvalidFileFormat": {
+                        "summary": "지원되지 않는 파일 형식",
+                        "value": {
+                            "success": False,
+                            "response": None,
+                            "error": {
+                                "code": "IMAGE_400_3",
+                                "reason": "지원되지 않는 파일 형식: image/jpeg, image/png",
+                                "http_status": status.HTTP_400_BAD_REQUEST
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+# 기능 잔여 횟수 확인 API 응답 구성
+remaining_requests_check_responses = {
+    401: {
+        "description": "인증 오류: 잘못된 인증 토큰 또는 만료된 인증 토큰",
+        "content": {
+            "application/json": {
+                "examples": {
+                    "InvalidJWT": {
+                        "summary": "잘못된 인증 토큰",
+                        "value": {
+                            "success": False,
+                            "response": None,
+                            "error": {
+                                "code": "SECURITY_401_1",
+                                "reason": "잘못된 인증 토큰 형식입니다.",
+                                "http_status": status.HTTP_401_UNAUTHORIZED
+                            }
+                        }
+                    },
+                    "ExpiredJWT": {
+                        "summary": "만료된 인증 토큰",
+                        "value": {
+                            "success": False,
+                            "response": None,
+                            "error": {
+                                "code": "SECURITY_401_2",
+                                "reason": "인증 토큰이 만료되었습니다.",
+                                "http_status": status.HTTP_401_UNAUTHORIZED
                             }
                         }
                     }

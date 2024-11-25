@@ -5,6 +5,7 @@
 .env
 .env.dev
 .env.prod
+.env.public
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
@@ -201,6 +202,8 @@ es_data
 redis_data
 redis.conf
 
-# Data
-*.csv
-*.txt
+# test/data
+server/test/image
+
+# food.csv(대용량)
+server/data/food.csv

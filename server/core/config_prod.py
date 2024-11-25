@@ -1,16 +1,13 @@
-# 환경변수 설정
 import os
+
 from dotenv import load_dotenv
 
-
-# 개발 환경
-load_dotenv(dotenv_path=".env.dev")
+load_dotenv()
 
 class Settings:
 
     # 인증
     JWT_SECRET = os.getenv("JWT_SECRET")
-    TEST_TOKEN = os.getenv("TEST_TOKEN")
 
     # Swagger
     ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
@@ -21,11 +18,10 @@ class Settings:
 
     # Data
     DATA_PATH = os.getenv("DATA_PATH")
-    DOCKER_DATA_PATH = os.getenv("DOCKER_DATA_PATH")
     PROMPT_PATH = os.getenv("PROMPT_PATH")
 
     # Log
-    LOG_PATH = os.getenv("LOG_PATH")
+    LOG_PATH = os.getenv("LOG_PATH") 
 
     # MariaDB
     RDS_DATABASE_ENDPOINT = os.getenv("RDS_DATABASE_ENDPOINT")
@@ -37,13 +33,11 @@ class Settings:
 
     # Elasticsearch
     ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST")
-    ELASTICSEARCH_LOCAL_HOST = os.getenv("ELASTICSEARCH_LOCAL_HOST")
     ELASTICSEARCH_USERNAME = os.getenv("ELASTICSEARCH_USERNAME")
     ELASTICSEARCH_PASSWORD = os.getenv("ELASTICSEARCH_PASSWORD")
 
     # Redis
     REDIS_HOST = os.getenv("REDIS_HOST")
-    REDIS_LOCAL_HOST = os.getenv("REDIS_LOCAL_HOST")
     REDIS_PORT = int(os.getenv("REDIS_PORT"))
     REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
     RATE_LIMIT = int(os.getenv("RATE_LIMIT"))

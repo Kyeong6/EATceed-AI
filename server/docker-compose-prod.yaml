@@ -1,0 +1,42 @@
+services:
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
+    env_file:
+      - .env
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=false # Swap 허용
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m # JVM Heap 크기 설정
+      - ELASTIC_USERNAME=${ELASTICSEARCH_USERNAME}
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD}
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./es_data:/usr/share/elasticsearch/data # elasticsearch 데이터
+    ulimits:
+      memlock: -1 # 메모리 락 해제
+    # 데이터 적재시 연결 보장하기 위한 healthcheck
+    # data-loader가 depneds_on을 사용하고 있지만, ES 컨테이너가 시작되는 것만 확인하지 서비스 완전히 준비된 것을 보장하지 않음
+    # 결국 ES 컨테이너가 "green" 상태가 될 때까지 대기하도록 설정 진행
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cat/health | grep -q green"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: on-failure
+
+  fastapi:
+    image: kyeong6/eatceed:latest
+    env_file:
+      - .env
+    ports:
+      - "8000:8000" 
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: on-failure
+
+volumes:
+  es_data:
+    driver: local

@@ -45,10 +45,24 @@ class MemberNotFound(HTTPException):
 
 """
 음식 이미지 분석
-1. 기능 횟수 제한
-2. 음식 이미지 분석 실패(OpenAI API)
-3. 음식이 아닌 다른 이미지 업로드
+1. 이미지 형식 에러(수신)
+2. 기능 횟수 제한
+3. 이미지 처리 실패
+4. 음식 이미지 분석 실패(OpenAI API)
+5. 음식이 아닌 다른 이미지 업로드
 """
+# 이미지 파일 형식 에러(수신)
+class InvalidFileFormat(HTTPException):
+    def __init__(self, allowed_types: list):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "IMAGE_400_3",
+                "reason": f"지원되지 않는 파일 형식: {', '.join(allowed_types)}",
+                "http_status": status.HTTP_400_BAD_REQUEST
+            }
+        )
+
 
 # 기능 횟수 제한
 class RateLimitExceeded(HTTPException):
@@ -59,6 +73,18 @@ class RateLimitExceeded(HTTPException):
                 "code": "IMAGE_429_1",
                 "reason": "하루 요청 제한을 초과했습니다.",
                 "http_status": status.HTTP_429_TOO_MANY_REQUESTS
+            }
+        )
+
+# 이미지 처리 실패
+class ImageProcessingError(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "IMAGE_422_1",
+                "reason": "이미지 처리 및 Base64 인코딩 중 오류가 발생했습니다.",
+                "http_status": status.HTTP_422_UNPROCESSABLE_ENTITY
             }
         )
 

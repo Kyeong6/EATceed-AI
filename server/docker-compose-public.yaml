@@ -1,0 +1,43 @@
+services:
+
+  redis:
+    image: redis:6.2
+    env_file:
+      - .env
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis_data:/data # Redis 데이터
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
+    env_file:
+      - .env
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=false # Swap 허용
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m # JVM Heap 크기 설정
+      - ELASTIC_USERNAME=${ELASTICSEARCH_USERNAME}
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD}
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./es_data:/usr/share/elasticsearch/data # elasticsearch 데이터
+    ulimits:
+      memlock: -1 # 메모리 락 해제
+    restart: on-failure
+
+volumes:
+  redis_data:
+    driver: local
+  es_data:
+    driver: local

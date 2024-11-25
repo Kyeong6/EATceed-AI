@@ -1,8 +1,14 @@
+import os
 import secrets
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from core.config import settings
-from errors.business_exception import InvalidJWT
+from starlette.status import HTTP_401_UNAUTHORIZED
+
+# 환경에 따른 설정 파일 로드
+if os.getenv("APP_ENV") == "prod":
+    from core.config_prod import settings
+else:
+    from core.config import settings
 
 # HTTP 기본 인증을 사용하는 Security 객체 생성
 security = HTTPBasic()
@@ -12,6 +18,10 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)) 
     correct_username = secrets.compare_digest(credentials.username, settings.ADMIN_USERNAME)
     correct_password = secrets.compare_digest(credentials.password, settings.ADMIN_PASSWORD)
     if not (correct_username and correct_password):
-        raise InvalidJWT()
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
         
     return credentials.username
