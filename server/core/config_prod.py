@@ -21,7 +21,10 @@ class Settings:
     PROMPT_PATH = os.getenv("PROMPT_PATH")
 
     # Log
-    LOG_PATH = os.getenv("LOG_PATH") 
+    LOG_PATH = os.getenv("LOG_PATH")
+
+    # Pinecone
+    PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 
     # MariaDB
     RDS_DATABASE_ENDPOINT = os.getenv("RDS_DATABASE_ENDPOINT")
