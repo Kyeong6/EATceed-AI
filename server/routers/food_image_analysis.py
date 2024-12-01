@@ -75,7 +75,11 @@ async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depe
 
         # 벡터 임베딩 기반 유사도 검색 진행
         similar_foods = search_similar_food(food_name)
-        similar_food_list = [{"food_name": food["food_name"], "food_pk": food["food_pk"]} for food in similar_foods]
+        # 검색 결과(임계값으로 필터링된 결과 포함)
+        similar_food_list = [
+            {"food_name": food["food_name"], "food_pk": food["food_pk"]}
+            for food in similar_foods
+        ]
 
         # 반환값 구성
         similar_food_results.append({
