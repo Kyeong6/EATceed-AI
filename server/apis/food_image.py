@@ -7,6 +7,7 @@ from elasticsearch import Elasticsearch
 from errors.business_exception import RateLimitExceeded, ImageAnalysisError, ImageProcessingError
 from errors.server_exception import FileAccessError, ServiceConnectionError, ExternalAPIError
 from logs.logger_config import get_logger
+import time
 
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
@@ -158,6 +159,10 @@ def get_embedding(text, model="text-embedding-3-small"):
 
 # 벡터 임베딩을 통한 유사도 분석 진행
 def search_similar_food(query_name):
+
+    # 시작 시간 기록
+    start_time = time.time()  
+
     index_name = "food_names"
 
     # OpenAI API를 사용하여 임베딩 생성
@@ -200,6 +205,11 @@ def search_similar_food(query_name):
     # 검색 결과가 있을 경우 food_name과 food_pk 추출, 없을 경우 null로 설정: AOS와 논의 필요
     result = [{"food_name": hit["_source"]["food_name"], "food_pk": hit["_source"]["food_pk"]} for hit in hits] if hits else [{"food_name": None, "food_pk": None}]
     
+    # 종료 시간 기록
+    end_time = time.time()  
+    execution_time = end_time - start_time
+    logger.info(f"search_similar_food 함수 수행 시간: {execution_time:.4f}초")
+
     # 최대 3개의 결과 반환 또는 null
     return result  
 

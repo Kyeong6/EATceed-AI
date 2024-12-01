@@ -5,6 +5,7 @@ from auth.decoded_token import get_current_member
 from errors.business_exception import InvalidFileFormat, InvalidFoodImageError
 from swagger.response_config import analyze_food_image_responses, remaining_requests_check_responses
 from logs.logger_config import get_logger
+import time
 
 # 공용 로거
 logger = get_logger()
@@ -24,6 +25,9 @@ router = APIRouter(
 # 음식 이미지 분석 API
 @router.post("/image", responses=analyze_food_image_responses)
 async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depends(get_current_member)):
+
+    # 시작 시간 기록
+    start_time = time.time()
 
     # 지원하는 파일 형식
     ALLOWED_FILE_TYPES = ["image/jpeg", "image/png"]
@@ -94,6 +98,11 @@ async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depe
         },
         "error": None
     }
+
+    # 종료 시간 기록
+    end_time = time.time()
+    execution_time = end_time - start_time
+    logger.info(f"analyze_food_image API 수행 시간: {execution_time:.4f}초")
 
     return response
 

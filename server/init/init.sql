@@ -179,8 +179,8 @@ VALUES
 (3, '2024-11-04 00:00:30', 1, 0, 3);  
 
 -- EAT_HABITS_TB 데이터 적재
-INSERT INTO EAT_HABITS_TB (EAT_HABITS_PK, ANALYSIS_STATUS_FK, WEIGHT_PREDICTION, ADVICE_CARBO, ADVICE_PROTEIN, ADVICE_FAT, SYNTHESIS_ADVICE)
+INSERT INTO EAT_HABITS_TB (EAT_HABITS_PK, ANALYSIS_STATUS_FK, WEIGHT_PREDICTION, ADVICE_CARBO, ADVICE_PROTEIN, ADVICE_FAT, SYNTHESIS_ADVICE, AVG_CALORIE)
 VALUES 
-(1, 1, '유지', '탄수화물 섭취 증가 권장', '단백질 섭취 증가 권장', '지방 섭취 줄이기 권장', '균형 잡힌 식단 유지 권장'),
-(2, 2, '감량', '탄수화물 섭취 줄이기 권장', '단백질 유지', '지방 섭취 증가 권장', '체중 감량을 위한 식단 조정 필요'),
-(3, 3, '증가', '탄수화물 섭취 증가 권장', '단백질 섭취 증가 권장', '지방 섭취 증가 권장', '칼로리 흡수 증대를 권장');
+(1, 1, '유지', '탄수화물 섭취 증가 권장', '단백질 섭취 증가 권장', '지방 섭취 줄이기 권장', '균형 잡힌 식단 유지 권장', 2200),
+(2, 2, '감량', '탄수화물 섭취 줄이기 권장', '단백질 유지', '지방 섭취 증가 권장', '체중 감량을 위한 식단 조정 필요', 2100),
+(3, 3, '증가', '탄수화물 섭취 증가 권장', '단백질 섭취 증가 권장', '지방 섭취 증가 권장', '칼로리 흡수 증대를 권장', 2300);
