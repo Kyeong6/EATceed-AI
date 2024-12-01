@@ -29,6 +29,8 @@ class Settings:
 
     # Pinecone
     PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+    INDEX_HOST = os.getenv("INDEX_HOST")
+    INDEX_NAME = os.getenv("INDEX_NAME")
 
     # MariaDB
     RDS_DATABASE_ENDPOINT = os.getenv("RDS_DATABASE_ENDPOINT")
