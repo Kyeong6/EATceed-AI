@@ -3,10 +3,11 @@ import base64
 import redis
 from datetime import datetime, timedelta
 from openai import OpenAI
-from elasticsearch import Elasticsearch
+from pinecone.grpc import PineconeGRPC as Pinecone
 from errors.business_exception import RateLimitExceeded, ImageAnalysisError, ImageProcessingError
 from errors.server_exception import FileAccessError, ServiceConnectionError, ExternalAPIError
 from logs.logger_config import get_logger
+import time
 
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
@@ -14,22 +15,9 @@ if os.getenv("APP_ENV") == "prod":
 else:
     from core.config import settings
 
-# 공용 로거
-logger = get_logger()
-
-
-# Chatgpt API 사용
-client = OpenAI(api_key = settings.OPENAI_API_KEY)
-
-
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
 
-    # 운영: Elasticsearch 클라이언트 설정
-    es = Elasticsearch(
-        settings.ELASTICSEARCH_HOST,
-        http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
-    )
     # 운영: Redis 클라이언트 설정
     redis_client = redis.StrictRedis(
         host=settings.REDIS_HOST,
@@ -38,11 +26,6 @@ if os.getenv("APP_ENV") == "prod":
         decode_responses=True
     )
 else:
-    # 개발: Elasticsearch 클라이언트 설정
-    es = Elasticsearch(
-        settings.ELASTICSEARCH_LOCAL_HOST, 
-        http_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
-    )
     # 개발: Redis 클라이언트 설정
     redis_client = redis.StrictRedis(
         host=settings.REDIS_LOCAL_HOST,  
@@ -51,9 +34,18 @@ else:
         decode_responses=True
     )
 
-
 # 요청 제한 설정
 RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
+
+# 공용 로거
+logger = get_logger()
+
+# Chatgpt API 사용
+client = OpenAI(api_key = settings.OPENAI_API_KEY)
+
+# Pinecone 설정
+pc = Pinecone(api_key=settings.PINECONE_API_KEY)
+index = pc.Index(host=settings.INDEX_HOST)
 
 
 # Redis 기반 요청 제한 함수
@@ -156,52 +148,39 @@ def get_embedding(text, model="text-embedding-3-small"):
     return embedding
 
 
-# 벡터 임베딩을 통한 유사도 분석 진행
-def search_similar_food(query_name):
-    index_name = "food_names"
-
-    # OpenAI API를 사용하여 임베딩 생성
+# 벡터 임베딩을 통한 유사도 분석 진행(Pinecone)
+def search_similar_food(query_name, top_k=3, score_threshold=0.7):
+    
     try:
         query_vector = get_embedding(query_name)
     except Exception as e:
         logger.error(f"OpenAI API 텍스트 임베딩 실패: {e}")
         raise ExternalAPIError()
 
-    # Elasticsearch 벡터 유사도 검색
-    try:
-        response = es.search(
-            index=index_name,
-            body={
-                "query": {
-                    "script_score": {
-                        "query": {"match_all": {}},
-                        "script": {
-                            # 코사인 유사도 진행
-                            "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
-                            "params": {"query_vector": query_vector}
-                        }
-                    }
-                },
-                # 상위 3개의 유사한 결과 반환
-                "size": 3  
-            }
-        )
-    except Exception as e:
-        logger.error(f"Elasticsearch 기능(유사도 분석) 실패: {e}")
-        raise ServiceConnectionError()
+    # Pinecone에서 유사도 검색
+    results = index.query(
+        vector=query_vector,
+        # 결과값 갯수 설정
+        top_k=top_k,
+        # 메타데이터 포함 유무
+        include_metadata=True
+    )
 
-    # 검색 결과: food_name, food_pk 추출
-    hits = response.get('hits', {}).get('hits', [])
+    # 결과 처리 (점수 필터링 적용)
+    similar_foods = [
+        {
+            'food_pk': match['id'],
+            'food_name': match['metadata']['food_name'],
+            'score': match['score']
+        }
+        for match in results['matches'] if match['score'] >= score_threshold
+    ]
 
-    # 검색 결과가 null 3개일 경우
-    if not hits:
-        logger.info("유사도 검색 결과가 없습니다: null 값 3개 반환")
-    
-    # 검색 결과가 있을 경우 food_name과 food_pk 추출, 없을 경우 null로 설정: AOS와 논의 필요
-    result = [{"food_name": hit["_source"]["food_name"], "food_pk": hit["_source"]["food_pk"]} for hit in hits] if hits else [{"food_name": None, "food_pk": None}]
-    
-    # 최대 3개의 결과 반환 또는 null
-    return result  
+    # null로 채워서 항상 top_k 크기로 반환
+    while len(similar_foods) < top_k:
+        similar_foods.append({'food_name': None, 'food_pk': None})
+
+    return similar_foods[:top_k]
 
 
 # Redis의 정의된 잔여 기능 횟수 확인
