@@ -2,8 +2,8 @@
 set -e  # 에러 발생 시 스크립트 중단
 
 # Elasticsearch 데이터 적재 스크립트 실행
-echo "Starting init/load_food_espy"
-python init/load_food_es.py
+echo "Starting init/load_food.py"
+python init/load_food.py
 
 # DB 연결 상태 확인
 echo "Checking DB connection"
