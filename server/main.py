@@ -2,7 +2,7 @@ import uvicorn
 import logging
 from fastapi import FastAPI, status
 from fastapi.responses import UJSONResponse
-from routers import diet_analysis, food_image_analysis, swagger_auth
+from routers import diet_analysis, food_image_analysis, swagger_auth, image_censorship
 from errors.handler import register_exception_handlers
 from apis.food_analysis import start_scheduler
 from logs.logger_config import get_logger, configure_uvicorn_logger
@@ -35,6 +35,7 @@ register_exception_handlers(app)
 # router
 app.include_router(diet_analysis.router)
 app.include_router(food_image_analysis.router)
+app.include_router(image_censorship.router)
 app.include_router(swagger_auth.router)
 
 
