@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, File, UploadFile
 from auth.decoded_token import get_current_member
-from errors.business_exception import InvalidFileFormat, InvalidFoodImageError
+from errors.business_exception import InvalidFileFormat
 from logs.logger_config import get_logger
-from swagger.response_config import analyze_food_image_responses, remaining_requests_check_responses
+from swagger.response_config import cencoring_image_responses
 from apis.food_image import process_image_to_base64
 from apis.image_censor import detect_safe_search
 
@@ -16,7 +16,7 @@ router = APIRouter(
 )
 
 # 이미지 검열 API
-@router.post("/censor", responses=analyze_food_image_responses)
+@router.post("/censor", responses=cencoring_image_responses)
 async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depends(get_current_member)):
 
     # 지원하는 파일 형식
