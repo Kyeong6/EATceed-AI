@@ -41,6 +41,9 @@ class Settings:
     REDIS_PORT = int(os.getenv("REDIS_PORT"))
     REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
     RATE_LIMIT = int(os.getenv("RATE_LIMIT"))
+
+    # GCP
+    GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     
     
 settings = Settings()
