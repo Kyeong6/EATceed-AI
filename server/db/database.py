@@ -7,8 +7,10 @@ from sqlalchemy.orm import sessionmaker
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
     from core.config_prod import settings
+elif os.getenv("APP_ENV") == "dev":
+    from server.core.config_dev import settings
 else:
-    from core.config import settings
+    from server.core.config_local import settings
 
 db_url = settings.DB_URL
 
