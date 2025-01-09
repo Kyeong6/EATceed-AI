@@ -1,3 +1,4 @@
+import os
 import uvicorn
 import logging
 from fastapi import FastAPI, status
@@ -14,14 +15,22 @@ logger = get_logger()
 logging.getLogger("openai").setLevel(logging.ERROR)  
 logging.getLogger("httpx").setLevel(logging.ERROR)
 
+# 환경에 따른 root_path 설정
+env = os.getenv("APP_ENV")
+root_path = f"/{env}" if env in ["prod", "dev"] else ""
 
+# 운영 환경 Swagger 비활성화
+openapi_url = f"{root_path}/ai/v1/api/openapi.json" if env != "prod" else None
+
+# FastAPI APP 설정
 app = FastAPI(
     title="EATceed",
     description="EATceed 프로젝트 AI 서버",
     docs_url=None,
     redoc_url=None,
-    openapi_url="/ai/v1/api/openapi.json",
+    openapi_url=openapi_url,
     default_response_class=UJSONResponse,
+    root_path=root_path
 )
 
 # API Server Test
