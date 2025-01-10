@@ -6,7 +6,7 @@ from errors.business_exception import (
 )
 from errors.server_exception import (
     FileAccessError, ExternalAPIError, ServiceConnectionError, AnalysisSaveError,
-    AnalysisProcessError, AnalysisStatusUpdateError, NoMemberFound, QueryError
+    AnalysisProcessError, AnalysisStatusUpdateError, NoMemberFound, QueryError, DecryptError
 )
 
 # 서버 예외 핸들러
@@ -41,6 +41,7 @@ def register_exception_handlers(app: FastAPI):
     app.add_exception_handler(AnalysisStatusUpdateError, server_exception_handler)
     app.add_exception_handler(NoMemberFound, server_exception_handler)
     app.add_exception_handler(QueryError, server_exception_handler)
+    app.add_exception_handler(DecryptError, server_exception_handler)
 
     # 비즈니스 예외 핸들러 등록
     app.add_exception_handler(InvalidJWT, business_exception_handler)

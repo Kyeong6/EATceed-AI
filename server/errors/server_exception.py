@@ -95,3 +95,15 @@ class QueryError(HTTPException):
                 "status": status.HTTP_500_INTERNAL_SERVER_ERROR
             }
         )
+
+# 데이터베이스 조회 복호화 오류
+class DecryptError(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "SERVER_500_9",
+                "reason": "데이터베이스 조회 중 복호화 오류가 발생했습니다.",
+                "status": status.HTTP_500_INTERNAL_SERVER_ERROR
+            }
+        )
