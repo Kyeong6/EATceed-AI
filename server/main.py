@@ -17,7 +17,12 @@ logging.getLogger("httpx").setLevel(logging.ERROR)
 
 # 환경에 따른 root_path 설정
 env = os.getenv("APP_ENV")
-root_path = f"/{env}" if env in ["prod", "dev"] else ""
+if env == "prod":
+    root_path = "/prod"
+elif env == "dev":
+    root_path = "/dev"
+else:
+    root_path = ""
 
 # 운영 환경 Swagger 비활성화
 docs_url = f"{root_path}/ai/v1/api/docs" if env != "prod" else None
@@ -32,7 +37,6 @@ app = FastAPI(
     redoc_url=redocs_url,
     openapi_url=openapi_url,
     default_response_class=UJSONResponse,
-    root_path=root_path
 )
 
 # API Server Test
@@ -44,10 +48,10 @@ async def read_root():
 register_exception_handlers(app)
 
 # router
-app.include_router(diet_analysis.router)
-app.include_router(food_image_analysis.router)
-app.include_router(image_censorship.router)
-app.include_router(swagger_auth.router)
+app.include_router(diet_analysis.router, prefix=f"{root_path}/ai/v1/diet_analysis")
+app.include_router(food_image_analysis.router, prefix=f"{root_path}/ai/v1/food_image_analysis")
+app.include_router(image_censorship.router, prefix=f"{root_path}/ai/v1/image_censor")
+app.include_router(swagger_auth.router, prefix=f"{root_path}/ai/v1/api")
 
 
 # 서버 실행

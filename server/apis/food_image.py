@@ -18,7 +18,7 @@ else:
     from core.config_local import settings
 
 # 환경에 따른 설정 파일 로드
-if os.getenv("APP_ENV") == "prod":
+if os.getenv("APP_ENV") in ["prod", "dev"]:
 
     # 운영: Redis 클라이언트 설정
     redis_client = redis.StrictRedis(

@@ -11,12 +11,11 @@ logger = get_logger()
 
 
 router = APIRouter(
-    prefix="/ai/v1",
     tags=["이미지 검열"]
 )
 
 # 이미지 검열 API
-@router.post("/censor", responses=cencoring_image_responses)
+@router.post("/check", responses=cencoring_image_responses)
 async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depends(get_current_member)):
 
     # 지원하는 파일 형식
