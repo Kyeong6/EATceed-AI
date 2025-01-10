@@ -7,8 +7,11 @@ load_dotenv()
 
 class Settings:
 
-    # 인증
+    # Auth
     JWT_SECRET = os.getenv("JWT_SECRET")
+
+    # Decryption
+    ENCRYPTION_SECRET = os.getenv("ENCRYPTION_SECRET")
 
     # Swagger
     ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")

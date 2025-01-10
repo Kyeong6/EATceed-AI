@@ -8,9 +8,12 @@ load_dotenv(dotenv_path=".env.local")
 
 class Settings:
 
-    # 인증
+    # Auth
     JWT_SECRET = os.getenv("JWT_SECRET")
     TEST_TOKEN = os.getenv("TEST_TOKEN")
+
+    # Decryption
+    ENCRYPTION_SECRET = os.getenv("ENCRYPTION_SECRET")
 
     # Swagger
     ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
