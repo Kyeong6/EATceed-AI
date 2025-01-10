@@ -359,3 +359,61 @@ remaining_requests_check_responses = {
         }
     }
 }
+
+# 이미지 검열 API 응답 구성
+cencoring_image_responses = {
+    401: {
+        "description": "인증 오류: 잘못된 인증 토큰 또는 만료된 인증 토큰",
+        "content": {
+            "application/json": {
+                "examples": {
+                    "InvalidJWT": {
+                        "summary": "잘못된 인증 토큰",
+                        "value": {
+                            "success": False,
+                            "response": None,
+                            "error": {
+                                "code": "SECURITY_401_1",
+                                "reason": "잘못된 인증 토큰 형식입니다.",
+                                "http_status": status.HTTP_401_UNAUTHORIZED
+                            }
+                        }
+                    },
+                    "ExpiredJWT": {
+                        "summary": "만료된 인증 토큰",
+                        "value": {
+                            "success": False,
+                            "response": None,
+                            "error": {
+                                "code": "SECURITY_401_2",
+                                "reason": "인증 토큰이 만료되었습니다.",
+                                "http_status": status.HTTP_401_UNAUTHORIZED
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    400: {
+        "description": "잘못된 요청: 음식 이미지 오류 또는 API 분석 실패",
+        "content": {
+            "application/json": {
+                "examples": {
+                    "InvalidFileFormat": {
+                        "summary": "지원되지 않는 파일 형식",
+                        "value": {
+                            "success": False,
+                            "response": None,
+                            "error": {
+                                "code": "IMAGE_400_3",
+                                "reason": "지원되지 않는 파일 형식: image/jpeg, image/png",
+                                "http_status": status.HTTP_400_BAD_REQUEST
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

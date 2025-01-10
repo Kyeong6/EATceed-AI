@@ -12,7 +12,6 @@ logger = get_logger()
 
 
 router = APIRouter(
-    prefix="/ai/v1/food_image_analysis",
     tags=["음식 이미지 분석"]
 )
 

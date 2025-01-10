@@ -7,7 +7,6 @@ from auth.decoded_token import get_current_member
 from swagger.response_config import get_user_analysis_responses, get_status_alert_responses
 
 router = APIRouter(
-    prefix="/ai/v1/diet_analysis",
     tags=["식습관 분석"]
 )
 

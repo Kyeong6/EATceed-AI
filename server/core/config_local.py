@@ -4,13 +4,16 @@ from dotenv import load_dotenv
 
 
 # 개발 환경
-load_dotenv(dotenv_path=".env.dev")
+load_dotenv(dotenv_path=".env.local")
 
 class Settings:
 
-    # 인증
+    # Auth
     JWT_SECRET = os.getenv("JWT_SECRET")
     TEST_TOKEN = os.getenv("TEST_TOKEN")
+
+    # Decryption
+    ENCRYPTION_SECRET = os.getenv("ENCRYPTION_SECRET")
 
     # Swagger
     ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
@@ -46,6 +49,9 @@ class Settings:
     REDIS_PORT = int(os.getenv("REDIS_PORT"))
     REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
     RATE_LIMIT = int(os.getenv("RATE_LIMIT"))
+
+    # GCP
+    GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     
     
 settings = Settings()

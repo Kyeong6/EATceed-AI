@@ -6,6 +6,7 @@ from db.models import EatHabits, Member, Food, Meal, MealFood, AnalysisStatus
 from errors.business_exception import MemberNotFound, UserDataError, AnalysisInProgress, AnalysisNotCompleted, NoAnalysisRecord
 from errors.server_exception import AnalysisSaveError, NoMemberFound, QueryError
 from logs.logger_config import get_logger
+from auth.decoded_db import decrypt_db
 
 # 공용 로거
 logger = get_logger()
@@ -29,6 +30,10 @@ def get_member_info(db: Session, member_id: int):
     if not member:
         logger.error(f"존재하지 않은 회원: {member_id}")
         raise MemberNotFound()
+    
+    # MEMBER_ETC 복호화 진행
+    if member.MEMBER_ETC:
+        member.MEMBER_ETC = decrypt_db(member.MEMBER_ETC)
     
     return member
 
