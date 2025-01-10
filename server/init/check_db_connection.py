@@ -8,9 +8,9 @@ from logs.logger_config import get_logger
 if os.getenv("APP_ENV") == "prod":
     from core.config_prod import settings
 elif os.getenv("APP_ENV") == "dev":
-    from server.core.config_dev import settings
+    from core.config_dev import settings
 else:
-    from server.core.config_local import settings
+    from core.config_local import settings
 
 # 공용 로거
 logger = get_logger()

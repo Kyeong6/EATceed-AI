@@ -8,9 +8,9 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 if os.getenv("APP_ENV") == "prod":
     from core.config_prod import settings
 elif os.getenv("APP_ENV") == "dev":
-    from server.core.config_dev import settings
+    from core.config_dev import settings
 else:
-    from server.core.config_local import settings
+    from core.config_local import settings
 
 # HTTP 기본 인증을 사용하는 Security 객체 생성
 security = HTTPBasic()

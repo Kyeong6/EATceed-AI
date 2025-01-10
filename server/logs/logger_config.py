@@ -7,9 +7,9 @@ from datetime import datetime
 if os.getenv("APP_ENV") == "prod":
     from core.config_prod import settings
 elif os.getenv("APP_ENV") == "dev":
-    from server.core.config_dev import settings
+    from core.config_dev import settings
 else:
-    from server.core.config_local import settings
+    from core.config_local import settings
 
 # 로그 디렉토리 설정
 os.makedirs(settings.LOG_PATH, exist_ok=True)
