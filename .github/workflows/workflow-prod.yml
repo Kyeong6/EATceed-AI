@@ -14,7 +14,7 @@ jobs:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
     steps:
-      # chekcout action의 3 버전을 Actions으로써 실행
+      # Actions: chekcout action3
       - name: Checkout Code
         uses: actions/checkout@v3
       
