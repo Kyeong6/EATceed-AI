@@ -1,7 +1,7 @@
 name: EATceed
-run-name: ${{ github.actor }} is deploying EATceed-Dev
+run-name: 'PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }} is deploying to EATceed-Dev'
 
-# Event: main branch가 merge 될 때 Actions 작동
+# Event: develop branch merge
 on:
   pull_request:
     branches:
@@ -27,7 +27,7 @@ jobs:
 
       # Docker build
       - name: Build Docker Image
-        run: docker buildx build --platform linux/amd64 -t ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DEV_APPLICATION }} .
+        run: docker buildx build --platform linux/amd64 -t ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DEV_APPLICATION }} -f server/Dockerfile.dev server
 
       # Docker push
       - name: Push Docker Image
