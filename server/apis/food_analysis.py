@@ -244,18 +244,22 @@ def scheduled_task():
     finally:
         db.close()
 
-# APScheduler 설정 및 시작
-def start_scheduler():
-    scheduler = BackgroundScheduler(timezone="Asia/Seoul")
+# # APScheduler 설정 및 시작
+# def start_scheduler():
+#     scheduler = BackgroundScheduler(timezone="Asia/Seoul")
     
-    # # 테스트 진행 스케줄러
-    # start_time = datetime.now() + timedelta(minutes=1)
-    # trigger = IntervalTrigger(start_date=start_time, minutes=5)
-    # scheduler.add_job(scheduled_task, trigger=trigger)
+#     # # 테스트 진행 스케줄러
+#     # start_time = datetime.now() + timedelta(minutes=1)
+#     # trigger = IntervalTrigger(start_date=start_time, minutes=5)
+#     # scheduler.add_job(scheduled_task, trigger=trigger)
 
-    # 운영용 스케줄러
-    scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
+#     # 운영용 스케줄러
+#     scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
 
-    scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
-    scheduler.start()
-    logger.info("스케줄러 시작")
+#     scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+#     scheduler.start()
+#     logger.info("스케줄러 시작")
+
+# 식습관 분석 테스트
+if __name__ == "__main__":
+    scheduled_task()
