@@ -125,6 +125,21 @@ class EatHabits(Base):
     AVG_CALORIE = Column(Double, nullable=False)
 
     analysis_status = relationship("AnalysisStatus", back_populates="eat_habits")
+    diet_analysis = relationship("DietAnalysis", back_populates="eat_habits", cascade="all, delete-orphan")
+
+# DIET_ANALYSIS_TB 구성
+class DietAnalysis(Base):
+    __tablename__ = "DIET_ANALYSIS_TB"
+    
+    DIET_ANALYSIS_PK = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    EAT_HABITS_FK = Column(BigInteger, ForeignKey('EAT_HABITS_TB.EAT_HABITS_PK', ondelete='CASCADE'), nullable=True)
+    CREATED_DATE = Column(DateTime(6), nullable=False)
+    UPDATED_DATE = Column(DateTime(6), nullable=False)
+    NUTRIENT_ANALYSIS = Column(Text, nullable=False)
+    DIET_PROBLEM = Column(Text, nullable=False)
+    CUSTOM_RECOMMEND = Column(Text, nullable=False)
+
+    eat_habits = relationship("EatHabits", back_populates="diet_analysis")
 
 # HISTORY_TB 구성
 class History(Base):
