@@ -173,7 +173,7 @@ def get_member_meals_avg(db: Session, member_id: int):
 # BMR 구하기
 def get_bmr(gender: int, weight: float, height: float, age: int) -> float:
    # 남자
-    if gender == 0: 
+    if gender == 1: 
       # 남자일 경우의 bmr 수식
       bmr = 66 + (13.7 * weight) + (5 * height) - (6.8 * age)
     # 여자
