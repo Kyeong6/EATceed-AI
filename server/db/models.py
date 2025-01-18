@@ -45,6 +45,7 @@ class Agreement(Base):
     AGREEMENT_IS_PRIVACY_POLICY_AGREE = Column(Boolean, nullable=False)
     AGREEMENT_IS_TERMS_SERVICE_AGREE = Column(Boolean, nullable=False)
     AGREEMENT_IS_OVER_AGE = Column(Boolean, nullable=False)
+    AGREEMENT_IS_SENSITIVE_DATA_AGREE = Column(Boolean, nullable=False)
 
     members = relationship("Member", back_populates="agreement")
 
@@ -121,7 +122,7 @@ class EatHabits(Base):
     ADVICE_CARBO = Column(Text, nullable=False)
     ADVICE_PROTEIN = Column(Text, nullable=False)
     ADVICE_FAT = Column(Text, nullable=False)
-    SYNTHESIS_ADVICE = Column(Text, nullable=False)
+    SUMMARIZED_ADVICE = Column(Text, nullable=False)
     AVG_CALORIE = Column(Double, nullable=False)
 
     analysis_status = relationship("AnalysisStatus", back_populates="eat_habits")
@@ -133,10 +134,8 @@ class DietAnalysis(Base):
     
     DIET_ANALYSIS_PK = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
     EAT_HABITS_FK = Column(BigInteger, ForeignKey('EAT_HABITS_TB.EAT_HABITS_PK', ondelete='CASCADE'), nullable=True)
-    CREATED_DATE = Column(DateTime(6), nullable=False)
-    UPDATED_DATE = Column(DateTime(6), nullable=False)
     NUTRIENT_ANALYSIS = Column(Text, nullable=False)
-    DIET_PROBLEM = Column(Text, nullable=False)
+    DIET_IMPROVE = Column(Text, nullable=False)
     CUSTOM_RECOMMEND = Column(Text, nullable=False)
 
     eat_habits = relationship("EatHabits", back_populates="diet_analysis")
