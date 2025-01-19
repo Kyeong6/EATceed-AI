@@ -33,7 +33,7 @@ def get_user_analysis(db: Session = Depends(get_db), member_id: int = Depends(ge
             "advice_carbo": latest_eat_habits.ADVICE_CARBO,
             "advice_protein": latest_eat_habits.ADVICE_PROTEIN,
             "advice_fat": latest_eat_habits.ADVICE_FAT,
-            "synthesis_advice": latest_eat_habits.SYNTHESIS_ADVICE
+            "summarized_advice": latest_eat_habits.SUMMARIZED_ADVICE
         },
         "error": None
         }

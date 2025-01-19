@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from db.models import EatHabits, Member, Food, Meal, MealFood, AnalysisStatus
+from db.models import EatHabits, Member, Food, Meal, MealFood, AnalysisStatus, DietAnalysis
 from errors.business_exception import MemberNotFound, UserDataError, AnalysisInProgress, AnalysisNotCompleted, NoAnalysisRecord
 from errors.server_exception import AnalysisSaveError, NoMemberFound, QueryError
 from logs.logger_config import get_logger
@@ -37,7 +37,6 @@ def get_member_info(db: Session, member_id: int):
     
     return member
 
-
 # TDEE 수식을 구하기 위한 사용자 신체정보 조회
 def get_member_body_info(db: Session, member_id: int):
 
@@ -60,10 +59,13 @@ def get_member_body_info(db: Session, member_id: int):
         'age': member.MEMBER_AGE,
         'height': member.MEMBER_HEIGHT,
         'weight': member.MEMBER_WEIGHT,
-        'physical_activity_index': activity_value
+        'physical_activity_index': activity_value,
+        'etc': member.MEMBER_ETC,
+        'target_weight': member.MEMBER_TARGET_WEIGHT
     }
     
-    if not (member.MEMBER_GENDER and member.MEMBER_AGE and member.MEMBER_HEIGHT and member.MEMBER_WEIGHT):
+    if not (member.MEMBER_GENDER and member.MEMBER_AGE and member.MEMBER_HEIGHT 
+            and member.MEMBER_WEIGHT and member.MEMBER_TARGET_WEIGHT):
         logger.error(f"회원의 신체 정보 조회 중 문제 발생")
         raise QueryError()
 
@@ -209,7 +211,7 @@ def get_user_data(db: Session, member_id: int):
     # 사용자 분석 데이터 구성
     user_data = {
         "user": [
-            {"gender": 'Male' if member_info['gender'] == 0 else 'Female'},
+            {"gender": 'Male' if member_info['gender'] == 1 else 'Female'},
             {"age": member_info['age']},
             {"height": member_info['height']},
             {"weight": member_info['weight']},
@@ -222,7 +224,9 @@ def get_user_data(db: Session, member_id: int):
             {"sugars": avg_nutrition["sugars"]},
             {"sodium": avg_nutrition["sodium"]},
             {"physical_activity_index": member_info['physical_activity_index']},
-            {"tdee": tdee}
+            {"tdee": tdee},
+            {"etc": member_info['etc']},
+            {"target_weight": member_info['target_weight']}
         ]
     }
 
@@ -233,9 +237,9 @@ def get_user_data(db: Session, member_id: int):
 
     return user_data
 
-# 식습관 분석 결과값 db에 저장
+# 식습관 조언 / 분석 요약 결과값 데이터베이스에 저장
 def create_eat_habits(db: Session, weight_prediction: str, advice_carbo: str,
-                      advice_protein: str, advice_fat: str, synthesis_advice: str, analysis_status_id: int, avg_calorie: float):
+                      advice_protein: str, advice_fat: str, summarized_advice: str, analysis_status_id: int, avg_calorie: float):
     try:
         eat_habits = EatHabits(
             ANALYSIS_STATUS_FK=analysis_status_id,
@@ -243,20 +247,42 @@ def create_eat_habits(db: Session, weight_prediction: str, advice_carbo: str,
             ADVICE_CARBO=advice_carbo,
             ADVICE_PROTEIN=advice_protein,
             ADVICE_FAT=advice_fat,
-            SYNTHESIS_ADVICE=synthesis_advice,
+            SUMMARIZED_ADVICE=summarized_advice,
             AVG_CALORIE=avg_calorie
         )
-        
+         
         db.add(eat_habits)
         db.commit()
         db.refresh(eat_habits)
         
         return eat_habits
     except Exception as e:
-        logger.error(f"식습관 분석 결과 저장 중 오류 발생: {analysis_status_id} - {e}")
+        logger.error(f"식습관 조언/ 분석 요약 결과 저장 중 오류 발생: {analysis_status_id} - {e}")
         db.rollback()
         raise AnalysisSaveError()
-        
+
+# 식습관 분석 결과값 데이터베이스 저장
+def create_diet_analysis(db: Session, eat_habits_id: int, nutrient_analysis: str, 
+                         diet_improve: str, custom_recommend: str):
+    try:
+        diet_analysis = DietAnalysis(
+            EAT_HABITS_FK=eat_habits_id,
+            NUTRIENT_ANALYSIS=nutrient_analysis,
+            DIET_IMPROVE=diet_improve,
+            CUSTOM_RECOMMEND=custom_recommend
+        )
+
+        db.add(diet_analysis)
+        db.commit()
+        db.refresh(diet_analysis)
+
+        return diet_analysis
+    except Exception as e:
+        logger.error(f"식습관 분석 결과 저장 중 오류 발생: {eat_habits_id} - {e}")
+        db.rollback()
+        raise AnalysisSaveError()
+
+
 # 모든 사용자 조회: 전체 사용자에 대한 분석 결과 도출
 def get_all_member_id(db: Session):
         

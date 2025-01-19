@@ -1,23 +1,26 @@
 # 메인 로직 작성
 import os
 import pandas as pd
-from openai import OpenAI
 from datetime import datetime
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
-from langchain.agents.agent_types import AgentType
-from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
+from operator import itemgetter
 from langchain_openai import ChatOpenAI
+from langchain.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.pydantic_v1 import BaseModel, Field
 from db.database import get_db
 from db.models import AnalysisStatus
-from db.crud import create_eat_habits, get_user_data, get_all_member_id, get_last_weekend_meals, add_analysis_status, update_analysis_status
+from db.crud import (create_eat_habits, get_user_data, get_all_member_id, get_last_weekend_meals, 
+                     add_analysis_status, update_analysis_status, create_diet_analysis)
 from errors.server_exception import FileAccessError, ExternalAPIError
 from logs.logger_config import get_logger
 
-# # 스케줄러 테스트
-# from datetime import timedelta
-# from apscheduler.triggers.date import DateTrigger
+# 스케줄러 테스트
+from datetime import timedelta
+from apscheduler.triggers.date import DateTrigger
 
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
@@ -31,7 +34,6 @@ else:
 # 공용 로거 
 logger = get_logger()
 
-
 # 스케줄러 이벤트 리스너 함수
 def scheduler_listener(event):
     if event.exception:
@@ -39,9 +41,40 @@ def scheduler_listener(event):
     else:
         logger.info(f"스케줄러 작업 종료: {event.job_id}")
 
+# 식습관 조언 구분
+class DietAdvice(BaseModel):
+    carbo_advice: str = Field(description="Advice for carbohydrate consumption.")
+    protein_advice: str = Field(description="Advice for protein consumption.")
+    fat_advice: str = Field(description="Advice for fat consumption.")
 
-# Chatgpt API 사용
-client = OpenAI(api_key = settings.OPENAI_API_KEY)
+# 식습관 분석: 영양소 분석
+class DietNurientAnalysis(BaseModel):
+    nutrient_analysis: str = Field(description="Analysis for User's nutrient consumption improvement")
+
+# 식습관 분석: 개선점
+class DietImprovement(BaseModel):
+    diet_improvement: str = Field(description="Improvements for user's eating habits")
+
+# 식습관 분석: 맞춤형 식단 제공
+class CustomRecommendation(BaseModel):
+    custom_recommendation: str = Field(description="Offer personalized diets")
+
+# 식습관 분석 요약
+class DietSummary(BaseModel):
+    diet_summary: str = Field(description="Eating habits analysis summary")
+
+
+# JSON 파서 생성
+advice_parser = JsonOutputParser(pydantic_object=DietAdvice)
+nutrient_parser = JsonOutputParser(pydantic_object=DietNurientAnalysis)
+improvement_parser = JsonOutputParser(pydantic_object=DietImprovement)
+custom_parser = JsonOutputParser(pydantic_object=CustomRecommendation)
+summary_parser = JsonOutputParser(pydantic_object=DietSummary)
+
+
+# Langchain 모델 설정: analysis / other
+llm = ChatOpenAI(model='gpt-4o-mini', temperature=0)
+analysis_llm = ChatOpenAI(model='gpt-4o', temperature=0)
 
 # prompt를 불러오기
 def read_prompt(filename):
@@ -54,15 +87,37 @@ def read_prompt(filename):
     
     return prompt
 
-# 식습관 분석 진행을 위한 OpenAI API 연결
-def get_completion(prompt, model="gpt-4o-mini"):
-    messages = [{"role": "user", "content": prompt}]
-    response = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=0
-    )
-    return response.choices[0].message.content
+# csv 파일 조회 및 필터링 진행
+def filter_calculate_averages(data_path, user_data):
+    
+    # csv 파일 조회
+    csv_path = os.path.join(data_path, "diet_advice.csv")
+    df = pd.read_csv(csv_path)
+
+    # 조건 필터링
+    filtered_df = df[
+        (df['gender'] == user_data['gender']) &
+        (abs(df['age'] - user_data['age']) <= 6) &
+        (abs(df['height'] - user_data['height']) <= 6) &
+        (abs(df['weight'] - user_data['weight']) <= 6) &
+        (abs(df['physical_activity_index'] - user_data['physical_activity_index']) <= 1)
+    ]
+
+    # 각 열의 평균 계산
+    if not filtered_df.empty:
+        averages = {
+            'carbo_avg': filtered_df['carbohydrate'].mean(),
+            'protein_avg': filtered_df['protein'].mean(),
+            'fat_avg': filtered_df['fat'].mean(),
+        }
+    else:
+        # 조건에 맞는 데이터가 없으면 평균값 데이터없음 설정
+        averages = {'carbo_avg': "데이터 없음",
+                    'protein_avg': "데이터 없음",
+                    'fat_avg': "데이터 없음"}
+    
+    return averages
+
 
 # 체중 예측 함수: user_data 이용
 def weight_predict(user_data: dict) -> str:
@@ -75,84 +130,137 @@ def weight_predict(user_data: dict) -> str:
     else:
         return '감소'
 
-# 식습관 조언 함수 (조언 프롬프트)
-def analyze_advice(prompt_type, user_data):
+# Prompt 템플릿 정의
+def create_prompt_template(file_path, input_variables, parser=None):
+    prompt_content = read_prompt(file_path)
+    template_kwargs = {"template": prompt_content, "input_variables": input_variables}
+    if parser:
+        template_kwargs["partial_variables"] = {"format_instructions": parser.get_format_instructions()}
+    return PromptTemplate(**template_kwargs)
 
-    prompt_file = os.path.join(settings.PROMPT_PATH, f"{prompt_type}.txt")
-    prompt = read_prompt(prompt_file)
-    
-    # 프롬프트 변수 설정
-    carbohydrate = user_data['user'][8]['carbohydrate']
-    protein = user_data['user'][6]['protein']
-    fat = user_data['user'][7]['fat']
-    sodium = user_data['user'][11]['sodium']
-    dietary_fiber = user_data['user'][9]['dietary_fiber']
-    sugar = user_data['user'][10]['sugars']
-    
-    prompt = prompt.format(carbohydrate=carbohydrate, protein=protein, fat=fat, 
-                            sodium=sodium, dietary_fiber=dietary_fiber, sugars=sugar)
-
-    # 식습관 분석 결과값 구성
-    completion = get_completion(prompt)
-
-    if not completion:
-        logger.error("식습관 조언 기능 (외부 호출) 실패")
-        raise ExternalAPIError()
-
-    return completion
-
-# 식습관 분석 함수 (판단 프롬프트)
-def analyze_diet(prompt_type, user_data):
-
-    prompt_file = os.path.join(settings.PROMPT_PATH, f"{prompt_type}.txt")
-    prompt = read_prompt(prompt_file)
-    df = pd.read_csv(os.path.join(settings.DATA_PATH, "analysis_diet.csv"))
-    weight_change = weight_predict(user_data)
-    
-    # 프롬프트 변수 설정
-    gender = user_data['user'][0]['gender']
-    age = user_data['user'][1]['age']
-    height = user_data['user'][2]['height']
-    weight = user_data['user'][3]['weight']
-    physical_activity_index = user_data['user'][12]['physical_activity_index']
-    carbohydrate = user_data['user'][8]['carbohydrate']
-    protein = user_data['user'][6]['protein']
-    fat = user_data['user'][7]['fat']
-    
-    prompt = prompt.format(gender=gender, age=age, height=height, weight=weight, 
-                            physical_activity_index=physical_activity_index,
-                            carbohydrate=carbohydrate, protein=protein, fat=fat)
-    
-    # agent에 전달할 데이터 설정
-    if weight_change == '증가':
-        # 데이터에서 체중이 감소한 경우
-        df = df[df['weight_change'] < 0] 
-    else:
-        # 데이터에서 체중이 증가한 경우
-        df = df[df['weight_change'] > 0] 
-    
-    # langchain의 create_pandas_dataframe_agent 사용
-    agent = create_pandas_dataframe_agent(
-    ChatOpenAI(temperature=0, model="gpt-4o-mini", openai_api_key=settings.OPENAI_API_KEY),
-    df=df,
-    # 상세 로그 출력 비활성화
-    verbose=False,
-    agent_type=AgentType.OPENAI_FUNCTIONS,
-    allow_dangerous_code=True
+# Chain 정의: 식습관 조언
+def create_advice_chain():
+    prompt_path = os.path.join(settings.PROMPT_PATH, "diet_advice.txt")
+    prompt_template = create_prompt_template(
+        prompt_path,
+        input_variables=[
+            "gender", "age", "height", "weight", "physical_activity_index",
+            "carbohydrate", "protein", "fat", "carbo_avg", "protein_avg", "fat_avg"
+        ],
+        parser=None
     )
-    
-    completion = agent.invoke(prompt)
+    return prompt_template | llm | advice_parser
 
-    if not completion:
-        logger.error("식습관 분석 기능(외부 호출) 실패")
+# Chain 정의: 전체적인 영양소 분석
+def create_nutrition_analysis_chain():
+    prompt_path = os.path.join(settings.PROMPT_PATH, "nutrition_analysis.txt")
+    prompt_template = create_prompt_template(
+        prompt_path,
+        input_variables=[
+            "gender", "age", "height", "weight",
+            "physical_activity_index", "carbohydrate", "protein", "fat",
+            "calorie", "sodium", "dietary_fiber", "sugars",
+            "carbo_avg", "protein_avg", "fat_avg", "tdee"
+        ],
+        parser=nutrient_parser
+    )
+    return prompt_template | analysis_llm | nutrient_parser
+
+# Chain 정의: 개선점
+def create_improvement_chain():
+    prompt_path = os.path.join(settings.PROMPT_PATH, "diet_improvement.txt")
+    prompt_template = create_prompt_template(
+        prompt_path,
+        input_variables=[
+            "carbohydrate", "carbo_avg", "protein", "protein_avg",
+            "fat", "fat_avg", "calorie", "tdee", "nutrition_analysis", "target_weight"
+        ],
+        parser=improvement_parser
+    )
+    return prompt_template | analysis_llm | improvement_parser
+
+# Chain 정의: 맞춤형 식단 제공
+def create_diet_recommendation_chain():
+    prompt_path = os.path.join(settings.PROMPT_PATH, "custom_recommendation.txt")
+    prompt_template = create_prompt_template(
+        prompt_path,
+        input_variables=[
+            "diet_improvement", "etc", "target_weight"
+        ],
+        parser=custom_parser
+    )
+    return prompt_template | analysis_llm | custom_parser
+
+
+# Chain 정의: 식습관 분석 요약
+def create_summarize_chain():
+    prompt_path = os.path.join(settings.PROMPT_PATH, "diet_summary.txt")
+    prompt_template = create_prompt_template(
+        prompt_path,
+        input_variables=[
+            "nutrition_analysis", "diet_improvement", "custom_recommendation"
+        ],
+        parser=summary_parser
+    )
+    return prompt_template | llm | summary_parser
+
+# Analysis Multi-Chain 연결
+def create_multi_chain(input_data):
+    try:
+        # 체인 정의
+        nutrient_chain = create_nutrition_analysis_chain()
+        improvement_chain = create_improvement_chain()
+        recommendation_chain = create_diet_recommendation_chain()
+        summary_chain = create_summarize_chain()
+        
+        # 체인 실행 흐름 정의
+        multi_chain = (
+            {
+                "nutrition_analysis": nutrient_chain,
+                "carbohydrate": RunnablePassthrough(),
+                "carbo_avg": RunnablePassthrough(),
+                "protein": RunnablePassthrough(),
+                "protein_avg": RunnablePassthrough(),
+                "fat": RunnablePassthrough(),
+                "fat_avg": RunnablePassthrough(),
+                "weight": RunnablePassthrough(),
+                "target_weight": RunnablePassthrough(),
+                "calorie": RunnablePassthrough(),
+                "tdee": RunnablePassthrough(),
+                "etc": RunnablePassthrough()
+            }
+            | RunnablePassthrough()
+            | {
+                "diet_improvement": improvement_chain,
+                "nutrition_analysis": itemgetter("nutrition_analysis"),
+                "target_weight": itemgetter("target_weight"),
+                "etc": itemgetter("etc")
+            }
+            | RunnablePassthrough()
+            | {
+                "custom_recommendation": recommendation_chain,
+                "diet_improvement": itemgetter("diet_improvement"),
+                "nutrition_analysis": itemgetter("nutrition_analysis")
+            }
+            | RunnablePassthrough()
+            | {
+                "diet_summary": summary_chain,
+                "custom_recommendation": itemgetter("custom_recommendation"),
+                "diet_improvement": itemgetter("diet_improvement"),
+                "nutrition_analysis": itemgetter("nutrition_analysis")
+            }
+            | RunnablePassthrough()
+        )
+        
+        return multi_chain
+    except Exception as e:
+        logger.error(f"Multi-Chain 생성 실패: {e}")
         raise ExternalAPIError()
 
-    return completion
 
-# 최종 식습관 분석 기능 함수
-def full_analysis(db: Session, member_id: int):
-
-    # 새로운 분석 상태 추가 및 진행 중 상태로 설정
+# RAG 파이프라인 실행 함수
+def run_analysis(db: Session, member_id: int):
+    # 분석 상태 업데이트
     analysis_status = add_analysis_status(db, member_id)
 
     try:
@@ -160,44 +268,100 @@ def full_analysis(db: Session, member_id: int):
         start_time = datetime.now()
         logger.info(f"분석 시작 member_id: {member_id} at {start_time}")
 
-        # 유저 데이터 활용
+        # 유저 데이터 조회
         user_data = get_user_data(db, member_id)
+        user_dict = {
+            'gender': user_data['user'][0]['gender'],
+            'age': user_data['user'][1]['age'],
+            'height': user_data['user'][2]['height'],
+            'weight': user_data['user'][3]['weight'],
+            'physical_activity_index': user_data['user'][12]['physical_activity_index']
+        }
 
+        # 영양소 평균값 계산
+        averages = filter_calculate_averages(settings.DATA_PATH, user_dict)
+        for key in ["carbo_avg", "protein_avg", "fat_avg"]:
+            averages[key] = averages.get(key, "데이터 없음")
+        
         # 체중 예측
         weight_result = weight_predict(user_data)
         user_data['weight_change'] = weight_result
 
-        # 평균 칼로리 계산
-        avg_calorie = user_data['user'][5]['calorie']
+        # 식습관 조언 독립 실행
+        advice_chain = create_advice_chain()
+        result_advice = advice_chain.invoke({
+            "gender": user_dict['gender'],
+            "age": user_dict['age'],
+            "height": user_dict['height'],
+            "weight": user_dict['weight'],
+            "physical_activity_index": user_dict['physical_activity_index'],
+            "carbohydrate": user_data['user'][8]['carbohydrate'],
+            "protein": user_data['user'][6]['protein'],
+            "fat": user_data['user'][7]['fat'],
+            "carbo_avg": averages["carbo_avg"],
+            "protein_avg": averages["protein_avg"],
+            "fat_avg": averages["fat_avg"]
+        })
+        logger.info(f"Advice chain result: {result_advice}")
 
-        # 각 프롬프트에 대해 분석 수행
-        analysis_results = {}
-        prompt_types = ['health_advice', 'weight_carbo', 'weight_fat', 'weight_protein']
-        for prompt_type in prompt_types:
-            if prompt_type == 'health_advice':  # 조언 프롬프트는 analyze_advice 함수
-                result = analyze_advice(prompt_type, user_data)
-                analysis_results[prompt_type] = result
-            else:  # 판단 프롬프트는 analyze_diet 함수
-                result = analyze_diet(prompt_type, user_data)
-                analysis_results[prompt_type] = result['output']
+        input_data = {
+            "gender": user_data['user'][0]['gender'],
+            "age": user_data['user'][1]['age'],
+            "height": user_data['user'][2]['height'],
+            "weight": user_data['user'][3]['weight'],
+            "physical_activity_index": user_data['user'][12]['physical_activity_index'],
+            "carbohydrate": user_data['user'][8]['carbohydrate'],
+            "protein": user_data['user'][6]['protein'],
+            "fat": user_data['user'][7]['fat'],
+            "calorie": user_data['user'][5]['calorie'],
+            "dietary_fiber": user_data['user'][9]['dietary_fiber'],
+            "sugars": user_data['user'][10]['sugars'],
+            "sodium": user_data['user'][11]['sodium'],
+            "tdee": user_data['user'][13]['tdee'],
+            "etc": user_data['user'][14]['etc'],
+            "target_weight": user_data['user'][15]['target_weight'],
+            "carbo_avg": averages["carbo_avg"],
+            "protein_avg": averages["protein_avg"],
+            "fat_avg": averages["fat_avg"]
+        }
 
-        # DB에 결과값 저장
-        create_eat_habits(
+        # Multi-Chain 실행
+        multi_chain = create_multi_chain(input_data)
+        result = multi_chain.invoke(input_data)
+
+         # JSON 데이터에서 문자열만 추출
+        # 결과값 JSON 변환 및 저장
+        nutrient_analysis_str = result["nutrition_analysis"]["nutrient_analysis"]
+        diet_improvement_str = result["diet_improvement"]["diet_improvement"]
+        custom_recommendation_str = result["custom_recommendation"]["custom_recommendation"]
+        diet_summary_str = result["diet_summary"]["diet_summary"]
+
+        # 식습관 조언 데이터 저장
+        eat_habits = create_eat_habits(
             db=db,
             weight_prediction=weight_result,
-            advice_carbo=analysis_results['weight_carbo'],
-            advice_protein=analysis_results['weight_protein'],
-            advice_fat=analysis_results['weight_fat'],
-            synthesis_advice=analysis_results['health_advice'],
+            advice_carbo=result_advice["carbo_advice"],
+            advice_protein=result_advice["protein_advice"],
+            advice_fat=result_advice["fat_advice"],
+            summarized_advice=diet_summary_str,
             analysis_status_id=analysis_status.STATUS_PK,
-            avg_calorie=avg_calorie
+            avg_calorie=user_data['user'][5]['calorie']
         )
 
-        # 분석 성공적으로 완료 후 상태 업데이트(IS_ANALYZED = True)
+        # 식습관 분석 데이터 저장
+        create_diet_analysis(
+            db=db,
+            eat_habits_id=eat_habits.EAT_HABITS_PK,
+            nutrient_analysis=nutrient_analysis_str,
+            diet_improve=diet_improvement_str,
+            custom_recommend=custom_recommendation_str
+        )
+
+        # 분석 상태 완료 처리
         update_analysis_status(db, analysis_status.STATUS_PK)
 
     except Exception as e:
-        logger.error(f"분석 진행(full_analysis) 에러 member_id: {member_id} - {e}")
+        logger.error(f"분석 진행(run_analysis) 에러 member_id: {member_id}, user_data: {user_data} - {e}")
 
         # 분석 실패: IS_PENDING=False, IS_ANALYZED=False
         db.query(AnalysisStatus).filter(AnalysisStatus.STATUS_PK == analysis_status.STATUS_PK).update({
@@ -227,7 +391,7 @@ def scheduled_task():
                 meals = get_last_weekend_meals(db, member_id)
                 if meals:
                     # 분석 실행
-                    full_analysis(db, member_id)
+                    run_analysis(db, member_id)
                 else:
                     # 식사기록이 없는 경우 분석 대기 상태 해제
                     db.query(AnalysisStatus).filter(AnalysisStatus.MEMBER_FK == member_id).update({
@@ -248,13 +412,13 @@ def scheduled_task():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone="Asia/Seoul")
     
-    # # 테스트 진행 스케줄러
-    # start_time = datetime.now() + timedelta(seconds=10)
-    # trigger = DateTrigger(run_date=start_time)
-    # scheduler.add_job(scheduled_task, trigger=trigger)
+    # 테스트 진행 스케줄러
+    start_time = datetime.now() + timedelta(seconds=3)
+    trigger = DateTrigger(run_date=start_time)
+    scheduler.add_job(scheduled_task, trigger=trigger)
 
-    # 운영용 스케줄러
-    scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
+    # # 운영용 스케줄러
+    # scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
 
     scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
     scheduler.start()
