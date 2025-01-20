@@ -1,21 +1,14 @@
 import os
 import base64
 import redis
+import time
 from datetime import datetime, timedelta
 from openai import OpenAI
 from pinecone.grpc import PineconeGRPC as Pinecone
+from core.config import settings
 from errors.business_exception import RateLimitExceeded, ImageAnalysisError, ImageProcessingError
 from errors.server_exception import FileAccessError, ServiceConnectionError, ExternalAPIError
 from logs.logger_config import get_logger
-import time
-
-# 환경에 따른 설정 파일 로드
-if os.getenv("APP_ENV") == "prod":
-    from core.config_prod import settings
-elif os.getenv("APP_ENV") == "dev":
-    from core.config_dev import settings
-else:
-    from core.config_local import settings
 
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") in ["prod", "dev"]:

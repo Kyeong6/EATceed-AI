@@ -1,16 +1,9 @@
-import os
 import sys
 import time
 from db.database import engine
+from core.config import settings
 from logs.logger_config import get_logger
 
-# 환경에 따른 설정 파일 로드
-if os.getenv("APP_ENV") == "prod":
-    from core.config_prod import settings
-elif os.getenv("APP_ENV") == "dev":
-    from core.config_dev import settings
-else:
-    from core.config_local import settings
 
 # 공용 로거
 logger = get_logger()
