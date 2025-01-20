@@ -12,4 +12,15 @@ services:
       - MYSQL_PASSWORD=gaebaljip-local
     volumes:
       - ./db_data:/var/lib/mysql
-      - ./init/schema.sql:/docker-entrypoint-initdb.d/schema.sql  
+      - ./init/init.sql:/docker-entrypoint-initdb.d/init.sql 
+
+  redis:
+    image: redis:6.2
+    container_name: local-redis
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_PASSWORD=gaebaljip-local
+    command: ["redis-server", "--requirepass", "gaebaljip-local"]
+    volumes:
+      - ./redis_data:/data

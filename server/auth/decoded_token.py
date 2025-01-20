@@ -1,19 +1,21 @@
-# DB 관련 CRUD 작업 함수 정의
-from fastapi import Depends, Header
-from jose import JWTError, jwt, ExpiredSignatureError
+import os
 import logging
 import base64
-from errors.custom_exceptions import InvalidJWT, ExpiredJWT, SignatureJWT, TokenError
+from fastapi import Depends, Header
+from jose import jwt, ExpiredSignatureError
+from errors.business_exception import InvalidJWT, ExpiredJWT
 
-
-try:
-    from core.config import settings
-except:
-    from config import settings
+# 환경에 따른 설정 파일 로드
+if os.getenv("APP_ENV") == "prod":
+    from core.config_prod import settings
+elif os.getenv("APP_ENV") == "dev":
+    from core.config_dev import settings
+else:
+    from core.config_local import settings
 
 # 로그 메시지
 logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,8 @@ JWT_SECRET = base64.urlsafe_b64decode(settings.JWT_SECRET)
 # Bearer token 추출 및 디코딩
 def get_token_from_header(authorization: str = Header(...)):
     if not authorization:
-        logger.debug("Token not corret format")
+        logger.error("토큰의 형식이 잘못 되었습니다.")
+        # 잘못된 인증 토큰 예외처리 
         raise InvalidJWT()
     token = authorization.split("Bearer ")[1]
     return token
@@ -35,33 +38,23 @@ def get_token_from_header(authorization: str = Header(...)):
 
 # Token에서 member id 가져오기
 async def get_current_member(token: str = Depends(get_token_from_header)):
+    
     if isinstance(token, dict):
         return token
 
     try:
-        logger.debug(f"Attempting to decode token: {token}")
         decoded_payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
-        
-        if not isinstance(decoded_payload, dict) or "sub" not in decoded_payload:
-            logger.debug("Invalid payload format")
-            raise InvalidJWT()
-
         member_id: int = decoded_payload.get("sub")
+
         if member_id is None:
-            logger.debug("Member Id not found in decoded token")
+            # 잘못된 인증 토큰 예외처리
+            logger.error("토큰에 member_id가 존재하지 않습니다.")
             raise InvalidJWT()
         
-        logger.debug(f"Decoded memberId from token: {member_id}")
+        logger.debug(f"토큰 디코딩 member_id: {member_id}")
         return member_id
 
     except ExpiredSignatureError:
-        logger.error(f"Token expired: {token}")
+        # 만료된 인증 토큰 예외처리
+        logger.error("토큰이 만료 되었습니다.")
         raise ExpiredJWT()
-
-    except JWTError as e:
-        logger.error(f"JWTError occurred: {e}. Token: {token}, JWT_SECRET: {JWT_SECRET}")
-        raise InvalidJWT()
-
-    except Exception as e:
-        logger.error(f"An error occurred: {e}")
-        raise InvalidJWT()

@@ -5,6 +5,7 @@
 .env
 .env.dev
 .env.prod
+.env.local
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
@@ -197,7 +198,12 @@ google-services.json
 
 # Database
 db_data
+es_data
+redis_data
+redis.conf
 
-# Data
-*.csv
-*.txt
+# test/data
+server/test/image
+
+# food.csv(대용량)
+server/data/food.csv
