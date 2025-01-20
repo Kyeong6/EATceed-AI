@@ -437,3 +437,36 @@ def get_analysis_status(db: Session, member_id: int):
             raise NoAnalysisRecord()
                 
     return analysis_status
+
+# 식습관 분석 상세보기 조회
+def get_analysis_detail(db: Session, member_id: int):
+
+    # 최신 분석 상태 조회
+    analysis_status = db.query(AnalysisStatus).filter(
+        AnalysisStatus.MEMBER_FK == member_id,
+        AnalysisStatus.IS_ANALYZED == True
+    ).order_by(desc(AnalysisStatus.ANALYSIS_DATE)).first()
+
+    if not analysis_status:
+        logger.error(f"get_analysis_detail: member_id ({member_id})의 분석 기록(analysis_status)이 존재하지 않음")
+        raise NoAnalysisRecord()
+    
+    # EAT_HABITS_TB 조회
+    eat_habits = db.query(EatHabits).filter(
+        EatHabits.ANALYSIS_STATUS_FK == analysis_status.STATUS_PK
+    ).first()
+
+    if not eat_habits:
+        logger.error(f"get_analysis_detail: member_id ({member_id})의 분석 기록(eat_habits)이 존재하지 않음")
+        raise NoAnalysisRecord()
+    
+    # 식습관 분석 상세기록 조회
+    analysis_detail = db.query(DietAnalysis).filter(
+        DietAnalysis.EAT_HABITS_FK == eat_habits.EAT_HABITS_PK
+    ).first()
+
+    if not analysis_detail:
+        logger.error(f"get_analysis_detail: member_id ({member_id})의 분석 기록(analysis_detail)이 존재하지 않음")
+        raise NoAnalysisRecord()
+    
+    return analysis_detail
