@@ -249,7 +249,7 @@ def start_scheduler():
     scheduler = BackgroundScheduler(timezone="Asia/Seoul")
     
     # # 테스트 진행 스케줄러
-    # start_time = datetime.now() + timedelta(seconds=10)
+    # start_time = datetime.now() + timedelta(seconds=3)
     # trigger = DateTrigger(run_date=start_time)
     # scheduler.add_job(scheduled_task, trigger=trigger)
 
