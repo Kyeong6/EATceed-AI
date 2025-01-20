@@ -19,6 +19,10 @@ COPY entrypoint.sh /app/entrypoint.sh
 # 실행 권한 부여
 RUN chmod +x /app/entrypoint.sh
 
+# 타임존 설정 (Asia/Seoul)
+RUN ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
+    echo "Asia/Seoul" > /etc/timezone
+
 # 포트 
 EXPOSE 8000
 

@@ -209,7 +209,7 @@ def get_user_data(db: Session, member_id: int):
     # 사용자 분석 데이터 구성
     user_data = {
         "user": [
-            {"gender": 'Male' if member_info['gender'] == 0 else 'Female'},
+            {"gender": 'Male' if member_info['gender'] == 1 else 'Female'},
             {"age": member_info['age']},
             {"height": member_info['height']},
             {"weight": member_info['weight']},
