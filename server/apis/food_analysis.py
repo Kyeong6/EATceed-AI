@@ -19,7 +19,7 @@ from models.food_analysis_model import (DietAdvice, DietNurientAnalysis, DietImp
                                         CustomRecommendation, DietSummary)
 from utils.file_handler import read_prompt
 from utils.scheduler import scheduler_listener
-from errors.server_exception import ExternalAPIError
+from errors.server_exception import ExternalAPIError, FileAccessError, QueryError
 from logs.logger_config import get_logger
 
 # 스케줄러 테스트
@@ -46,6 +46,11 @@ def filter_calculate_averages(data_path, user_data):
     # csv 파일 조회
     csv_path = os.path.join(data_path, "diet_advice.csv")
     df = pd.read_csv(csv_path)
+
+    # csv 파일 조회 없을 시 예외처리 
+    if df.empty:
+        logger.error("csv 파일(diet_advice.csv)을 불러오기에 실패했습니다.")
+        raise FileAccessError()
 
     # 조건 필터링
     filtered_df = df[
@@ -230,7 +235,7 @@ def create_multi_chain(input_data):
         
         return multi_chain
     except Exception as e:
-        logger.error(f"Multi-Chain 생성 실패: {e}")
+        logger.error(f"Multi-Chain 실행 실패: {e}")
         raise ExternalAPIError()
 
 # # 식습관 조언 체인 실행
@@ -277,6 +282,12 @@ def run_analysis(db: Session, member_id: int):
 
         # 유저 데이터 조회
         user_data = get_user_data(db, member_id)
+
+        # 유저 데이터 조회 실패 예외처리 
+        if not user_data:
+            logger.error("run_analysis: user_data 조회 에러 발생")
+            QueryError()
+
         user_dict = {
             'gender': user_data['user'][0]['gender'],
             'age': user_data['user'][1]['age'],
