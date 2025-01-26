@@ -128,3 +128,55 @@ def remaning_requests_check(member_id: int = Depends(get_current_member)):
     }
 
     return response
+
+
+# # 음식 이미지 분석 API 평가 테스트
+# @router.post("/image", responses=analyze_food_image_responses)
+# async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depends(get_current_member)):
+#     start_total = time.time()
+
+#     # 이미지 처리 및 Base64 변환
+#     image_base64 = await process_image_to_base64(file)
+
+#     # OpenAI 음식 감지 시간 측정
+#     start_analyze = time.time()
+#     detected_food_data = food_image_analyze(image_base64)
+#     end_analyze = time.time()
+#     analyze_time = round(end_analyze - start_analyze, 4)
+
+#     # JSON 변환 확인 및 오류 방지
+#     if isinstance(detected_food_data, str):
+#         try:
+#             detected_food_data = json.loads(detected_food_data)
+#         except json.JSONDecodeError as e:
+#             raise ValueError(f"Failed to parse JSON: {e}")
+
+#     if not isinstance(detected_food_data, list):
+#         raise ValueError("Unexpected response format, expected a list of dicts")
+
+#     # 유사도 분석 시간 측정
+#     start_search = time.time()
+#     food_info = []
+#     for food in detected_food_data:
+#         if isinstance(food, dict) and "food_name" in food:
+#             similar_foods = search_similar_food(food["food_name"])
+#             food_info.append({
+#                 "detected_food": food["food_name"],
+#                 "similar_foods": similar_foods
+#             })
+#         else:
+#             print(f"Skipping invalid food item: {food}")
+#     end_search = time.time()
+#     search_time = round(end_search - start_search, 4)
+
+#     total_time = round(time.time() - start_total, 4)
+
+#     return {
+#         "success": True,
+#         "food_image_analyze_time": analyze_time,
+#         "search_similar_time": search_time,
+#         "total_time": total_time,
+#         "response": {
+#             "food_info": food_info
+#         }
+#     }

@@ -27,6 +27,9 @@ class Settings:
     DOCKER_DATA_PATH = os.getenv("DOCKER_DATA_PATH")
     PROMPT_PATH = os.getenv("PROMPT_PATH")
 
+    # Test
+    TEST_PATH = os.getenv("TEST_PATH")
+
     # Log
     LOG_PATH = os.getenv("LOG_PATH")
 
