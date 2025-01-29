@@ -15,9 +15,9 @@ from db.crud import create_eat_habits, get_user_data, get_all_member_id, get_las
 from errors.server_exception import FileAccessError, ExternalAPIError
 from logs.logger_config import get_logger
 
-# # 스케줄러 테스트
-# from datetime import timedelta
-# from apscheduler.triggers.date import DateTrigger
+# 스케줄러 테스트
+from datetime import timedelta
+from apscheduler.triggers.date import DateTrigger
 
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") == "prod":
@@ -160,6 +160,21 @@ def full_analysis(db: Session, member_id: int):
         start_time = datetime.now()
         logger.info(f"분석 시작 member_id: {member_id} at {start_time}")
 
+        # 식사 기록 확인
+        meals = get_last_weekend_meals(db, member_id)
+        if not meals:
+            logger.info(f"member_id={member_id}: 최근 7일간 식사 기록 없음")
+
+            # 식사 기록이 없으면 분석 실패 상태
+            db.query(AnalysisStatus).filter(AnalysisStatus.STATUS_PK==analysis_status.STATUS_PK).update({
+                "IS_PENDING": False,
+                "IS_ANALYZED": False,
+                "ANALYSIS_DATE": datetime.now()
+            })
+            db.commit()
+            # 식사 기록 없으므로 분석 진행하지 않고 종료
+            return 
+
         # 유저 데이터 활용
         user_data = get_user_data(db, member_id)
 
@@ -195,6 +210,7 @@ def full_analysis(db: Session, member_id: int):
 
         # 분석 성공적으로 완료 후 상태 업데이트(IS_ANALYZED = True)
         update_analysis_status(db, analysis_status.STATUS_PK)
+        db.commit()
 
     except Exception as e:
         logger.error(f"분석 진행(full_analysis) 에러 member_id: {member_id} - {e}")
@@ -214,47 +230,40 @@ def full_analysis(db: Session, member_id: int):
 
 # 스케줄링 설정
 def scheduled_task():
-    db: Session = next(get_db())
     try:
+        # Session Pool에서 get_all_member_id 실행을 위한 임시 세션
+        db_temp = next(get_db())
         # 유저 테이블에 존재하는 모든 member_id 조회
-        member_ids = get_all_member_id(db)
+        member_ids = get_all_member_id(db_temp)
+        db_temp.close()
 
         # 각 회원의 식습관 분석 수행
         # 현재는 for문을 통한 순차적으로 분석을 업데이트하지만, 추후에 비동기적 처리 필요
         for member_id in member_ids:
+            # 각 유저마다 개별 세션 생성
+            db: Session = next(get_db())
             try:
-                # 지난 일주일 동안 식사 등록 유무 확인
-                meals = get_last_weekend_meals(db, member_id)
-                if meals:
-                    # 분석 실행
-                    full_analysis(db, member_id)
-                else:
-                    # 식사기록이 없는 경우 분석 대기 상태 해제
-                    db.query(AnalysisStatus).filter(AnalysisStatus.MEMBER_FK == member_id).update({
-                        "ANALYSIS_DATE": datetime.now(),
-                        "IS_PENDING": False
-                    })
+                # 식습관 분석 실행
+                full_analysis(db, member_id)
             except Exception as e:
-                db.query(AnalysisStatus).filter(AnalysisStatus.MEMBER_FK == member_id).update({
-                    "ANALYSIS_DATE": datetime.now(),
-                    "IS_PENDING": False
-                })
-                db.commit()
+                db.rollback()
                 logger.error(f"식습관 분석 실패 member_id: {member_id} - {e}")
-    finally:
-        db.close()
+            finally:
+                db.close()
+    except Exception as e:
+        logger.error(f"스케줄링 전체 작업 중 오류 발생: {e}")
 
 # APScheduler 설정 및 시작
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone="Asia/Seoul")
     
-    # # 테스트 진행 스케줄러
-    # start_time = datetime.now() + timedelta(seconds=3)
-    # trigger = DateTrigger(run_date=start_time)
-    # scheduler.add_job(scheduled_task, trigger=trigger)
+    # 테스트 진행 스케줄러
+    start_time = datetime.now() + timedelta(seconds=3)
+    trigger = DateTrigger(run_date=start_time)
+    scheduler.add_job(scheduled_task, trigger=trigger)
 
-    # 운영용 스케줄러
-    scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
+    # # 운영용 스케줄러
+    # scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
 
     scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
     scheduler.start()
