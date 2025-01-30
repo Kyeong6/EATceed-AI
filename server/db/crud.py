@@ -33,7 +33,9 @@ def get_member_info(db: Session, member_id: int):
     
     # MEMBER_ETC 복호화 진행
     if member.MEMBER_ETC:
-        member.MEMBER_ETC = decrypt_db(member.MEMBER_ETC)
+        decrypted_value = decrypt_db(member.MEMBER_ETC)
+        db.expunge(member)
+        member.MEMBER_ETC = decrypted_value
     
     return member
 
