@@ -106,7 +106,6 @@ def food_image_analyze(image_base64: str):
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": prompt},
             {
                 "role": "user",
                 "content": [
@@ -119,7 +118,8 @@ def food_image_analyze(image_base64: str):
                         }
                     }
                 ]
-            }
+            },
+            {"role": "system", "content": prompt}
         ],
         temperature=0.0,
         max_tokens=300

@@ -50,14 +50,14 @@ def analyze_food_image(image_path):
         raise Exception(f"Failed with status code: {response.status_code}, Error: {response.text}")
 
 # 테스트할 이미지 목록
-image_dir = os.path.join(settings.TEST_PATH, '/test_image/')
+image_dir = os.path.join(settings.TEST_PATH, './test_image/')
 image_files = sorted(
     [f for f in os.listdir(image_dir) if f.endswith(('.jpeg', '.jpg'))],
     key=lambda x: int(os.path.splitext(x)[0])
 )
 
 # CSV 파일 경로
-output_csv = os.path.join(settings.TEST_PATH, '/test_image/test_result.csv')
+output_csv = os.path.join(settings.TEST_PATH, './test_image/test_result.csv')
 
 # 테스트 결과 저장할 리스트
 test_results = []
