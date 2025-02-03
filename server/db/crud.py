@@ -31,7 +31,7 @@ def get_member_info(db: Session, member_id: int):
         logger.error(f"존재하지 않은 회원: {member_id}")
         raise MemberNotFound()
     
-    # MEMBER_ETC 복호화 진행
+    # MEMBER_ETC 복호화 진행 및 변경사항 반영 x
     if member.MEMBER_ETC:
         decrypted_value = decrypt_db(member.MEMBER_ETC)
         db.expunge(member)
