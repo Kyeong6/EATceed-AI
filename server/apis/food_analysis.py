@@ -28,8 +28,8 @@ from apscheduler.triggers.date import DateTrigger
 logger = get_logger()
 
 # Langchain 모델 설정: analysis / other
-llm = ChatOpenAI(model='gpt-4o-mini', temperature=0)
-analysis_llm = ChatOpenAI(model='gpt-4o', temperature=0)
+llm = ChatOpenAI(model='gpt-4o-mini', temperature=0, max_completion_tokens=250)
+analysis_llm = ChatOpenAI(model='gpt-4o', temperature=0, max_completion_tokens=250)
  
 # 정량적 평가 기준(임계값)
 THRESHOLD_RELEVANCE= 3.0
@@ -435,13 +435,13 @@ def scheduled_task():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone="Asia/Seoul")
     
-    # 테스트 진행 스케줄러
-    start_time = datetime.now() + timedelta(seconds=3)
-    trigger = DateTrigger(run_date=start_time)
-    scheduler.add_job(scheduled_task, trigger=trigger)
+    # # 테스트 진행 스케줄러
+    # start_time = datetime.now() + timedelta(seconds=3)
+    # trigger = DateTrigger(run_date=start_time)
+    # scheduler.add_job(scheduled_task, trigger=trigger)
 
-    # # 운영용 스케줄러
-    # scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
+    # 운영용 스케줄러
+    scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
 
     scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
     scheduler.start()
