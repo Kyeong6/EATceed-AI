@@ -132,6 +132,7 @@ def food_image_analyze(image_base64: str):
     )
     
     result = response.choices[0].message.content
+    print(result)
 
     # 음식명(반환값)이 존재하지 않을 경우
     if not result:
