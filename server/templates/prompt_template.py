@@ -8,6 +8,7 @@ from core.config import settings
 # Langchain 모델 설정: analysis / other
 llm = ChatOpenAI(model='gpt-4o-mini', temperature=0, max_completion_tokens=250)
 analysis_llm = ChatOpenAI(model='gpt-4o', temperature=0, max_completion_tokens=250)
+vision_llm = ChatOpenAI(model='gpt-4o', temperature=0)
 
 # Prompt 템플릿 정의
 def create_prompt_template(file_path, input_variables):

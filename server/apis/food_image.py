@@ -35,8 +35,14 @@ RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
 # 공용 로거
 logger = get_logger()
 
-# Chatgpt API 사용
+# OpenAI API 사용
 client = OpenAI(api_key = settings.OPENAI_API_KEY)
+
+# Upsage API 사용
+upstage = OpenAI(
+    api_key = settings.UPSTAGE_API_KEY,
+    base_url="https://api.upstage.ai/v1/solar"
+)
 
 # Pinecone 설정
 pc = Pinecone(api_key=settings.PINECONE_API_KEY)
@@ -94,12 +100,12 @@ def read_prompt(filename):
 def food_image_analyze(image_base64: str):
 
     # prompt 타입 설정
-    prompt_file = os.path.join(settings.PROMPT_PATH, "food_image_analyze.txt")
+    prompt_file = os.path.join(settings.PROMPT_PATH, "image_detection.txt")
     prompt = read_prompt(prompt_file)
 
     # prompt 내용 없을 경우
     if not prompt:
-        logger.error("food_image_analyze.txt에 prompt 내용 미존재")
+        logger.error("image_detection.txt에 prompt 내용 미존재")
         raise FileAccessError()
 
     # OpenAI API 호출
@@ -112,7 +118,7 @@ def food_image_analyze(image_base64: str):
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/jpeg;base64,{image_base64}"
+                            "url": f"data:image/jpeg;base64,{image_base64}",
                             # 성능이 좋아지지만, token 소모 큼(tradeoff): 검증 필요
                             # "detail": "high"
                         }
@@ -136,16 +142,20 @@ def food_image_analyze(image_base64: str):
     return result
 
 
-# 제공받은 음식의 벡터 임베딩 값 변환 작업 수행
-def get_embedding(text, model="text-embedding-3-small"):
+# 제공받은 음식의 벡터 임베딩 값 변환 작업 수행(Upstage-Embedding 사용)
+def get_embedding(text, model="embedding-query"):
     text = text.replace("\n", " ")
-    embedding = client.embeddings.create(input=[text], model=model).data[0].embedding
+    embedding = upstage.embeddings.create(
+        input=[text], 
+        model=model).data[0].embedding
+    
     return embedding
 
 
 # 벡터 임베딩을 통한 유사도 분석 진행(Pinecone)
-def search_similar_food(query_name, top_k=3, score_threshold=0.7):
+def search_similar_food(query_name, top_k=3, score_threshold=0.7, candidate_multiplier=2):
     
+    # 음식명 Embedding Vector 변환
     try:
         query_vector = get_embedding(query_name)
     except Exception as e:
@@ -155,27 +165,34 @@ def search_similar_food(query_name, top_k=3, score_threshold=0.7):
     # Pinecone에서 유사도 검색
     results = index.query(
         vector=query_vector,
-        # 결과값 갯수 설정
-        top_k=top_k,
+        # 결과값 갯수 설정: 후처리 진행을 위한 많은 후보군 확보
+        top_k=top_k * candidate_multiplier,
         # 메타데이터 포함 유무
         include_metadata=True
     )
 
-    # 결과 처리 (점수 필터링 적용)
-    similar_foods = [
-        {
-            'food_pk': match['id'],
-            'food_name': match['metadata']['food_name'],
-            'score': match['score']
-        }
-        for match in results['matches'] if match['score'] >= score_threshold
-    ]
+    # 유사도 임계값을 넘는 후보들을 리스트로 구성
+    candidates = []
+    for match in results['matches']:
+        if match['score'] >= score_threshold:
+            candidate = {
+                "fook_pk": match['id'],
+                "food_name": match['metadata'].get("food_name"),
+                "score": match['score']
+            }
+            candidates.append(candidate)
+    
+    # 후보 리스트를 유사도 점수 기준으로 내림차순 정렬
+    sorted_candidates = sorted(candidates, key=lambda x: x["score"], reverse=True)
 
-    # null로 채워서 항상 top_k 크기로 반환
-    while len(similar_foods) < top_k:
-        similar_foods.append({'food_name': None, 'food_pk': None})
+    # 최종적으로 상위 top_k개 선택
+    final_results = sorted_candidates[:top_k]
 
-    return similar_foods[:top_k]
+    # 후보가 top_k개 미만일 경우 None으로 패딩
+    while len(final_results) < top_k:
+        final_results.append({'food_name': None, 'food_pk': None})
+
+    return final_results
 
 
 # Redis의 정의된 잔여 기능 횟수 확인
