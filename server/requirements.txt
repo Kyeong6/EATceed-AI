@@ -125,3 +125,4 @@ grpcio==1.68.1
 grpcio-status==1.68.1
 protobuf==5.29.1
 pycryptodome==3.21.0
+aiofiles==24.1.0
