@@ -204,6 +204,7 @@ redis.conf
 
 # test/data
 server/test/image
+server/test/test_image
 
 # food.csv(대용량)
 server/data/food.csv

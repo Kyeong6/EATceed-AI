@@ -2,14 +2,7 @@ import logging
 import os
 import pytz 
 from datetime import datetime 
-
-# 환경에 따른 설정 파일 로드
-if os.getenv("APP_ENV") == "prod":
-    from core.config_prod import settings
-elif os.getenv("APP_ENV") == "dev":
-    from core.config_dev import settings
-else:
-    from core.config_local import settings
+from core.config import settings
 
 # 로그 디렉토리 설정
 os.makedirs(settings.LOG_PATH, exist_ok=True)

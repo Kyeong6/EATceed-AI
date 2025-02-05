@@ -22,10 +22,16 @@ class Settings:
     # OpenAI
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+    # Upstage
+    UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
+
     # Data
     DATA_PATH = os.getenv("DATA_PATH")
     DOCKER_DATA_PATH = os.getenv("DOCKER_DATA_PATH")
     PROMPT_PATH = os.getenv("PROMPT_PATH")
+
+    # Test
+    TEST_PATH = os.getenv("TEST_PATH")
 
     # Log
     LOG_PATH = os.getenv("LOG_PATH")
