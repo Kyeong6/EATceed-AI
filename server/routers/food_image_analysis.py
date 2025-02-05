@@ -15,10 +15,10 @@ router = APIRouter(
     tags=["음식 이미지 분석"]
 )
 
-# # 음식 이미지 분석 API 테스트
-# @router.post("/test")
-# async def food_image_analysis_test():
-#     return {"success": "성공"}
+# 음식 이미지 분석 API 테스트
+@router.post("/test")
+async def food_image_analysis_test():
+    return {"success": "성공"}
 
 
 # # 음식 이미지 분석 API
@@ -35,16 +35,11 @@ router = APIRouter(
 #     if file.content_type not in ALLOWED_FILE_TYPES:
 #         raise InvalidFileFormat(allowed_types=ALLOWED_FILE_TYPES)
 
-#     """
-#     1. food_image_analyze 함수를 통해 얻은 음식명(리스트 값)을 이용해 
-#     Elasticsearch 유사도 검색을 진행해 유사도가 높은 음식(들) 반환 진행
-#     """
-
 #     # 이미지 처리 및 Base64 인코딩 진행
 #     image_base64 = await process_image_to_base64(file)
 
 #     # OpenAI API 호출로 이미지 분석 및 음식명 추출
-#     detected_food_data = food_image_analyze(image_base64)
+#     detected_food_data = await food_image_analyze(image_base64)
 
 #     # 음식 이미지를 업로드하지 않았을 경우
 #     if detected_food_data == {"error": True}:
@@ -65,15 +60,12 @@ router = APIRouter(
 #         food_name = food_data.get("food_name")
 
 #         # 음식명 누락 처리
-#         """
-#         식판사진을 예로 들어서, 5가지 음식 중 1개의 음식에서 food_name에 None이 존재 할 경우 해당 음식을 제외하고 일단 실행이 되어야 한다.
-#         """
 #         if not food_name:
 #             continue
         
 
 #         # 벡터 임베딩 기반 유사도 검색 진행
-#         similar_foods = search_similar_food(food_name)
+#         similar_foods = await search_similar_food(food_name)
 #         # 검색 결과(임계값으로 필터링된 결과 포함)
 #         similar_food_list = [
 #             {"food_name": food["food_name"], "food_pk": food["food_pk"]}
@@ -101,6 +93,7 @@ router = APIRouter(
 #         },
 #         "error": None
 #     }
+#     logger.info(f"member_id:{member_id} - 음식 이미지 탐지 API 사용 ")
 
 #     # 종료 시간 기록
 #     end_time = time.time()
@@ -112,12 +105,12 @@ router = APIRouter(
 
 # 기능 잔여 횟수 확인 API
 @router.get("/count", responses=remaining_requests_check_responses)
-def remaning_requests_check(member_id: int = Depends(get_current_member)):
+async def remaning_requests_check(member_id: int = Depends(get_current_member)):
 
     """
     사용자의 남은 요청 횟수 반환
     """
-    remaining_requests = get_remaining_requests(member_id)
+    remaining_requests = await get_remaining_requests(member_id)
 
     response = {
         "success": True,
@@ -140,7 +133,7 @@ async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depe
 
     # OpenAI 음식 감지 시간 측정
     start_analyze = time.time()
-    detected_food_data = food_image_analyze(image_base64)
+    detected_food_data = await food_image_analyze(image_base64)
     end_analyze = time.time()
     analyze_time = round(end_analyze - start_analyze, 4)
 
@@ -159,7 +152,7 @@ async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depe
     food_info = []
     for food in detected_food_data:
         if isinstance(food, dict) and "food_name" in food:
-            similar_foods = search_similar_food(food["food_name"])
+            similar_foods = await search_similar_food(food["food_name"])
             food_info.append({
                 "detected_food": food["food_name"],
                 "similar_foods": similar_foods
@@ -180,3 +173,10 @@ async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depe
             "food_info": food_info
         }
     }
+
+# @router.delete("/cache/prompt")
+# async def clear_prompt_cache():
+#     """🔹 Redis의 프롬프트 캐시를 삭제하여 즉시 갱신"""
+#     redis_client.delete("prompt:image_detection.txt")
+#     logger.info("🧹 Redis에서 프롬프트 캐시 삭제 완료")
+#     return {"message": "프롬프트 캐시가 삭제되었습니다."}
