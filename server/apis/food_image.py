@@ -1,9 +1,10 @@
 import os
 import base64
 import redis
+import aiofiles
 import time
 from datetime import datetime, timedelta
-from openai import OpenAI
+from openai import AsyncOpenAI
 from pinecone.grpc import PineconeGRPC as Pinecone
 from core.config import settings
 from errors.business_exception import RateLimitExceeded, ImageAnalysisError, ImageProcessingError
@@ -32,11 +33,20 @@ else:
 # 요청 제한 설정
 RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
 
+# 프롬프트 캐싱
+CACHE_TTL = 3600
+
 # 공용 로거
 logger = get_logger()
 
-# Chatgpt API 사용
-client = OpenAI(api_key = settings.OPENAI_API_KEY)
+# OpenAI API 사용
+client = AsyncOpenAI(api_key = settings.OPENAI_API_KEY)
+
+# Upsage API 사용
+upstage = AsyncOpenAI(
+    api_key = settings.UPSTAGE_API_KEY,
+    base_url="https://api.upstage.ai/v1/solar"
+)
 
 # Pinecone 설정
 pc = Pinecone(api_key=settings.PINECONE_API_KEY)
@@ -84,26 +94,48 @@ async def process_image_to_base64(file):
 
 
 # prompt를 불러오기
-def read_prompt(filename):
-    with open(filename, 'r', encoding='utf-8') as file:
-        prompt = file.read().strip()
-    return prompt
+async def read_prompt(filename):
+
+    # Redis에서 캐싱된 프롬프트 확인
+    cached_prompt = redis_client.get(f"prompt:{filename}")
+
+    if cached_prompt:
+        # logger.info(f"Redis 캐싱 프롬프트 사용: {filename}")
+        return cached_prompt
+
+    try:
+        async with aiofiles.open(filename, 'r', encoding='utf-8') as file:
+            prompt =  (await file.read()).strip()
+        
+        if not prompt:
+            logger.error("프롬프트 파일 비어있음")
+            raise FileAccessError()
+        
+        # Redis에 프롬프트 캐싱(TTL : 1 hr)
+        redis_client.setex(f"prompt:{filename}", CACHE_TTL, prompt)
+        logger.info(f"Redis 프롬프트 캐싱 완료: {filename}")
+
+        return prompt
+
+    except Exception as e:
+        logger.error(f"프롬프트 파일 읽기 실패: {e}")
+        raise FileAccessError()
 
 
 # 음식 이미지 분석 API: prompt_type은 함수명과 동일
-def food_image_analyze(image_base64: str):
+async def food_image_analyze(image_base64: str):
 
     # prompt 타입 설정
-    prompt_file = os.path.join(settings.PROMPT_PATH, "food_image_analyze.txt")
-    prompt = read_prompt(prompt_file)
+    prompt_file = os.path.join(settings.PROMPT_PATH, "image_detection.txt")
+    prompt = await read_prompt(prompt_file)
 
     # prompt 내용 없을 경우
     if not prompt:
-        logger.error("food_image_analyze.txt에 prompt 내용 미존재")
+        logger.error("image_detection.txt에 prompt 내용 미존재")
         raise FileAccessError()
 
     # OpenAI API 호출
-    response = client.chat.completions.create(
+    response = await client.chat.completions.create(
         model="gpt-4o",
         messages=[
             {
@@ -112,7 +144,7 @@ def food_image_analyze(image_base64: str):
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/jpeg;base64,{image_base64}"
+                            "url": f"data:image/jpeg;base64,{image_base64}",
                             # 성능이 좋아지지만, token 소모 큼(tradeoff): 검증 필요
                             # "detail": "high"
                         }
@@ -126,6 +158,7 @@ def food_image_analyze(image_base64: str):
     )
     
     result = response.choices[0].message.content
+    # print(result)
 
     # 음식명(반환값)이 존재하지 않을 경우
     if not result:
@@ -136,50 +169,59 @@ def food_image_analyze(image_base64: str):
     return result
 
 
-# 제공받은 음식의 벡터 임베딩 값 변환 작업 수행
-def get_embedding(text, model="text-embedding-3-small"):
-    text = text.replace("\n", " ")
-    embedding = client.embeddings.create(input=[text], model=model).data[0].embedding
-    return embedding
+# 제공받은 음식의 벡터 임베딩 값 변환 작업 수행(Upstage-Embedding 사용)
+async def get_embedding(text, model="embedding-query"):
+    try:
+        text = text.replace("\n", " ")
+        response = await upstage.embeddings.create(input=[text], model=model)
+        return response.data[0].embedding
+    except Exception as e:
+        logger.error(f"텍스트 임베딩 변환 실패: {e}")
+        raise ExternalAPIError()
 
 
 # 벡터 임베딩을 통한 유사도 분석 진행(Pinecone)
-def search_similar_food(query_name, top_k=3, score_threshold=0.7):
-    
+async def search_similar_food(query_name, top_k=3, score_threshold=0.7, candidate_multiplier=2):
     try:
-        query_vector = get_embedding(query_name)
+        # 음식명 Embedding Vector 변환
+        query_vector = await get_embedding(query_name)
+
+        # Pinecone에서 유사도 검색
+        results = index.query(
+            vector=query_vector,
+            top_k=top_k * candidate_multiplier,
+            include_metadata=True
+        )
+
+        # 결과 처리 (점수 필터링 적용)
+        candidates = [
+            {
+                'food_pk': match['id'],
+                'food_name': match['metadata']['food_name'],
+                'score': match['score']
+            }
+            for match in results['matches'] if match['score'] >= score_threshold
+        ]
+
+        # 유사도 점수를 기준으로 내림차순 정렬
+        sorted_candidates = sorted(candidates, key=lambda x: x["score"], reverse=True)
+
+        # 상위 top_k개 선택
+        final_results = sorted_candidates[:top_k]
+
+        # null로 채워서 항상 top_k 크기로 반환
+        while len(final_results) < top_k:
+            final_results.append({'food_name': None, 'food_pk': None})
+
+        return final_results
+
     except Exception as e:
-        logger.error(f"OpenAI API 텍스트 임베딩 실패: {e}")
+        logger.error(f"유사도 검색 실패: {e}")
         raise ExternalAPIError()
-
-    # Pinecone에서 유사도 검색
-    results = index.query(
-        vector=query_vector,
-        # 결과값 갯수 설정
-        top_k=top_k,
-        # 메타데이터 포함 유무
-        include_metadata=True
-    )
-
-    # 결과 처리 (점수 필터링 적용)
-    similar_foods = [
-        {
-            'food_pk': match['id'],
-            'food_name': match['metadata']['food_name'],
-            'score': match['score']
-        }
-        for match in results['matches'] if match['score'] >= score_threshold
-    ]
-
-    # null로 채워서 항상 top_k 크기로 반환
-    while len(similar_foods) < top_k:
-        similar_foods.append({'food_name': None, 'food_pk': None})
-
-    return similar_foods[:top_k]
 
 
 # Redis의 정의된 잔여 기능 횟수 확인
-def get_remaining_requests(member_id: int):
+async def get_remaining_requests(member_id: int):
 
     try:
         # Redis 키 생성
