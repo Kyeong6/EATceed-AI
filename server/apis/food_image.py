@@ -33,6 +33,9 @@ else:
 # 요청 제한 설정
 RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
 
+# 프롬프트 캐싱
+CACHE_TTL = 3600
+
 # 공용 로거
 logger = get_logger()
 
@@ -92,9 +95,28 @@ async def process_image_to_base64(file):
 
 # prompt를 불러오기
 async def read_prompt(filename):
+
+    # Redis에서 캐싱된 프롬프트 확인
+    cached_prompt = redis_client.get(f"prompt:{filename}")
+
+    if cached_prompt:
+        # logger.info(f"Redis 캐싱 프롬프트 사용: {filename}")
+        return cached_prompt
+
     try:
         async with aiofiles.open(filename, 'r', encoding='utf-8') as file:
-            return (await file.read()).strip()
+            prompt =  (await file.read()).strip()
+        
+        if not prompt:
+            logger.error("프롬프트 파일 비어있음")
+            raise FileAccessError()
+        
+        # Redis에 프롬프트 캐싱(TTL : 1 hr)
+        redis_client.setex(f"prompt:{filename}", CACHE_TTL, prompt)
+        logger.info(f"Redis 프롬프트 캐싱 완료: {filename}")
+
+        return prompt
+
     except Exception as e:
         logger.error(f"프롬프트 파일 읽기 실패: {e}")
         raise FileAccessError()
@@ -136,7 +158,7 @@ async def food_image_analyze(image_base64: str):
     )
     
     result = response.choices[0].message.content
-    print(result)
+    # print(result)
 
     # 음식명(반환값)이 존재하지 않을 경우
     if not result:

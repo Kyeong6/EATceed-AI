@@ -15,10 +15,10 @@ router = APIRouter(
     tags=["음식 이미지 분석"]
 )
 
-# # 음식 이미지 분석 API 테스트
-# @router.post("/test")
-# async def food_image_analysis_test():
-#     return {"success": "성공"}
+# 음식 이미지 분석 API 테스트
+@router.post("/test")
+async def food_image_analysis_test():
+    return {"success": "성공"}
 
 
 # # 음식 이미지 분석 API
@@ -93,6 +93,7 @@ router = APIRouter(
 #         },
 #         "error": None
 #     }
+#     logger.info(f"member_id:{member_id} - 음식 이미지 탐지 API 사용 ")
 
 #     # 종료 시간 기록
 #     end_time = time.time()
@@ -172,3 +173,10 @@ async def analyze_food_image(file: UploadFile = File(...), member_id: int = Depe
             "food_info": food_info
         }
     }
+
+# @router.delete("/cache/prompt")
+# async def clear_prompt_cache():
+#     """🔹 Redis의 프롬프트 캐시를 삭제하여 즉시 갱신"""
+#     redis_client.delete("prompt:image_detection.txt")
+#     logger.info("🧹 Redis에서 프롬프트 캐시 삭제 완료")
+#     return {"message": "프롬프트 캐시가 삭제되었습니다."}
