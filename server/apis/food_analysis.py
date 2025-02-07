@@ -1,5 +1,6 @@
 # 메인 로직 작성
 import os
+import time
 import pandas as pd
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -216,11 +217,21 @@ def run_analysis(db: Session, member_id: int):
 
     try:
         # 분석 시작 시간
-        start_time = datetime.now()
-        logger.info(f"분석 시작 member_id: {member_id} at {start_time}")
+        start_total = time.time()
+        logger.info(f"분석 시작 member_id: {member_id}")
+
+        # 1. 데이터베이스 조회 시간 측정
+        start_db = time.time()
 
         # 식사 기록 확인
         meals = get_last_weekend_meals(db, member_id)
+        # 유저 데이터 조회
+        user_data = get_user_data(db, member_id)
+
+        end_db = time.time()
+        db_time = round(end_db - start_db, 4)
+        logger.info(f"[DB Query Time] member_id={member_id}, 실행 시간: {db_time} sec")
+
         if not meals:
             logger.info(f"member_id={member_id}: 최근 7일간 식사 기록 없음")
 
@@ -234,9 +245,6 @@ def run_analysis(db: Session, member_id: int):
             # 식사 기록 없으므로 분석 진행하지 않고 종료
             return 
 
-        # 유저 데이터 조회
-        user_data = get_user_data(db, member_id)
-
         # 유저 데이터 조회 실패 예외처리 
         if not user_data:
             logger.error("run_analysis: user_data 조회 에러 발생")
@@ -245,14 +253,25 @@ def run_analysis(db: Session, member_id: int):
          # 리스트를 딕셔너리로 변환
         user_dict = {key: value for d in user_data["user"] for key, value in d.items()}
 
+        # 2. CSV 조회 시간 측정
+        start_csv = time.time()
+
         # 영양소 평균값 계산
         averages = filter_calculate_averages(settings.DATA_PATH, user_dict)
+
+        end_csv = time.time()
+        csv_time = round(end_csv - start_csv, 4)
+        logger.info(f"[CSV Read Time] member_id={member_id}, 실행 시간: {csv_time} sec")
+
         for key in ["carbo_avg", "protein_avg", "fat_avg"]:
             averages[key] = averages.get(key, "데이터 없음")
         
         # 체중 예측
         weight_result = weight_predict(user_data)
         user_data['weight_change'] = weight_result
+
+        # 3. 식습관 조언 Chain 실행 시간 측정
+        start_diet_chain = time.time()
 
         # 식습관 조언 독립 실행
         advice_chain = create_advice_chain()
@@ -269,17 +288,27 @@ def run_analysis(db: Session, member_id: int):
             "protein_avg": averages["protein_avg"],
             "fat_avg": averages["fat_avg"]
         })
-        logger.info(f"Advice chain result: {result_advice}")
+
+        end_diet_chain = time.time()
+        diet_chian_time = round(end_diet_chain - start_diet_chain, 4)
+        logger.info(f"[Diet-Chain Execution Time] member_id={member_id}, 실행 시간: {diet_chian_time} sec")
 
         updated_user_data = {
-            **user_dict,  # 🔥 user_dict의 모든 값을 포함
+            **user_dict, 
             "carbo_avg": averages["carbo_avg"],
             "protein_avg": averages["protein_avg"],
             "fat_avg": averages["fat_avg"]
         }
+        
+        # 4. Multi-Chain 실행 시간 측정
+        start_multi_chain = time.time()
 
         # Multi-Chain 실행
         final_results = run_multi_chain(updated_user_data)
+
+        end_multi_chain = time.time()
+        multi_chain_time = round(end_multi_chain - start_multi_chain, 4)
+        logger.info(f"[Multi-Chain Execution Time] member_id={member_id}, 실행 시간: {multi_chain_time} sec")
 
         # 식습관 조언 데이터 저장
         eat_habits = create_eat_habits(
@@ -318,8 +347,9 @@ def run_analysis(db: Session, member_id: int):
     
     finally:
         # 분석 종료 시간
-        end_time = datetime.now()
-        logger.info(f"분석 완료 member_id: {member_id} at {end_time} (Elapsed time: {end_time - start_time})")
+        end_total = time.time()
+        total_time = round(end_total - start_total, 4)
+        logger.info(f"[Total Execution Time] member_id={member_id}, 실행 시간: {total_time}")
 
 # 스케줄링 설정
 def scheduled_task():
@@ -348,13 +378,13 @@ def scheduled_task():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone="Asia/Seoul")
     
-    # # 테스트 진행 스케줄러
-    # start_time = datetime.now() + timedelta(seconds=3)
-    # trigger = DateTrigger(run_date=start_time)
-    # scheduler.add_job(scheduled_task, trigger=trigger)
+    # 테스트 진행 스케줄러
+    start_time = datetime.now() + timedelta(seconds=3)
+    trigger = DateTrigger(run_date=start_time)
+    scheduler.add_job(scheduled_task, trigger=trigger)
 
-    # 운영용 스케줄러
-    scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
+    # # 운영용 스케줄러
+    # scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
 
     scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
     scheduler.start()

@@ -1,9 +1,14 @@
 import os
+import time
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from utils.file_handler import read_prompt
 from core.config import settings
+from logs.logger_config import get_logger
+
+# 공용 로거 
+logger = get_logger()
 
 # Langchain 모델 설정: analysis / other
 llm = ChatOpenAI(model='gpt-4o-mini', temperature=0, max_completion_tokens=250)
@@ -13,6 +18,7 @@ vision_llm = ChatOpenAI(model='gpt-4o', temperature=0)
 # Prompt 템플릿 정의
 def create_prompt_template(file_path, input_variables):
     prompt_content = read_prompt(file_path)
+
     return PromptTemplate(template=prompt_content, input_variables=input_variables)
 
 # Chain 정의: 식습관 조언
