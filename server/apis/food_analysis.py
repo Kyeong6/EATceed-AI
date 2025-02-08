@@ -10,6 +10,7 @@ from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from operator import itemgetter
 from langchain_core.runnables import RunnablePassthrough
 from core.config import settings
+from utils.file_handler import load_all_prompts
 from db.database import get_db
 from db.models import AnalysisStatus
 from db.crud import (create_eat_habits, get_user_data, get_all_member_id, get_last_weekend_meals, 
@@ -86,13 +87,13 @@ def weight_predict(user_data: dict) -> str:
         return '감소'
 
 # Analysis Multi-Chain 연결
-def create_multi_chain(input_data):
+async def create_multi_chain(input_data):
     try:
         # 체인 정의
-        nutrient_chain = create_nutrition_analysis_chain()
-        improvement_chain = create_improvement_chain()
-        recommendation_chain = create_diet_recommendation_chain()
-        summary_chain = create_summarize_chain()
+        nutrient_chain = await create_nutrition_analysis_chain()
+        improvement_chain = await create_improvement_chain()
+        recommendation_chain = await create_diet_recommendation_chain()
+        summary_chain = await create_summarize_chain()
         
         # 체인 실행 흐름 정의
         multi_chain = (
@@ -163,10 +164,11 @@ def compare_results(result_A, result_B, eval_A, eval_B):
 
 # 평가 후 재실행 함수: A/B 테스트 적용
 async def run_multi_chain(user_data):
-    evaluation_chain = create_evaluation_chain()
+    evaluation_chain = await create_evaluation_chain()
 
     # 첫 번째 실행(A)
-    result_A = await create_multi_chain(user_data).ainvoke(user_data)
+    multi_chain_A = await create_multi_chain(user_data)
+    result_A = await multi_chain_A.ainvoke(user_data)
     evaluation_A = await evaluation_chain.ainvoke({
         **user_data,
         **result_A
@@ -186,7 +188,8 @@ async def run_multi_chain(user_data):
         return result_A_with_eval
     
     # 두 번째 실행(B)
-    result_B = await create_multi_chain(user_data).ainvoke(user_data)
+    multi_chain_B = await create_multi_chain(user_data)
+    result_B = await multi_chain_B.ainvoke(user_data)
     evaluation_B = await evaluation_chain.ainvoke({
         **user_data,
         **result_B
@@ -213,6 +216,10 @@ async def run_multi_chain(user_data):
 
 # 식습관 분석 실행 함수
 async def run_analysis(db: Session, member_id: int):
+
+    # 프롬프트 적재
+    await load_all_prompts()
+
     # 분석 상태 업데이트
     analysis_status = add_analysis_status(db, member_id)
 
@@ -275,7 +282,7 @@ async def run_analysis(db: Session, member_id: int):
         start_diet_chain = time.time()
 
         # 식습관 조언 독립 실행
-        advice_chain = create_advice_chain()
+        advice_chain = await create_advice_chain()
         result_advice = await advice_chain.ainvoke({
             "gender": user_dict['gender'],
             "age": user_dict['age'],
@@ -399,15 +406,15 @@ def run_async_task():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone="Asia/Seoul")
     
-    # 테스트 진행 스케줄러
-    start_time = datetime.now() + timedelta(seconds=3)
-    trigger = DateTrigger(run_date=start_time)
+    # # 테스트 진행 스케줄러
+    # start_time = datetime.now() + timedelta(seconds=3)
+    # trigger = DateTrigger(run_date=start_time)
     
-    # APScheduler가 실행되는 쓰레드에서 run_async_task 실행
-    scheduler.add_job(run_async_task, trigger=trigger)
+    # # APScheduler가 실행되는 쓰레드에서 run_async_task 실행
+    # scheduler.add_job(run_async_task, trigger=trigger)
 
-    # # 운영용 스케줄러
-    # scheduler.add_job(run_async_task, 'cron', day_of_week='mon', hour=0, minute=0)
+    # 운영용 스케줄러
+    scheduler.add_job(run_async_task, 'cron', day_of_week='mon', hour=0, minute=0)
 
     scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
     scheduler.start()

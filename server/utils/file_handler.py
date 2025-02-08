@@ -6,9 +6,6 @@ from errors.server_exception import FileAccessError
 from logs.logger_config import get_logger
 from core.config import settings
 
-# 프롬프트 캐싱
-CACHE_TTL = 3600
-
 # 환경에 따른 설정 파일 로드
 if os.getenv("APP_ENV") in ["prod", "dev"]:
 
@@ -31,41 +28,66 @@ else:
 # 공용 로거 
 logger = get_logger()
 
-# prompt를 불러오기
-def read_prompt(filename):
-    with open(filename, 'r', encoding='utf-8') as file:
-        prompt = file.read().strip()
+# 전역 메모리 캐시
+prompt_cache = {}
+prompt_timestamps = {}
 
-    if not prompt:
-        logger.error("prompt 파일을 불러오기에 실패했습니다.")
+# prompt 불러오기
+async def read_prompt(filename: str, category: str, ttl: int):
+    
+    global prompt_cache, prompt_timestamps
+
+    # 파일 마지막 수정 시간 확인
+    try:
+        last_modified_time = os.path.getmtime(filename)
+    except Exception as e:
+        logger.error(f"파일을 찾을 수 없음: {filename}")
         raise FileAccessError()
     
-    return prompt
-
-# # prompt를 불러오기
-# async def read_prompt(filename):
-
-#     # Redis에서 캐싱된 프롬프트 확인
-#     cached_prompt = redis_client.get(f"prompt:{filename}")
-
-#     if cached_prompt:
-#         # logger.info(f"Redis 캐싱 프롬프트 사용: {filename}")
-#         return cached_prompt
-
-#     try:
-#         async with aiofiles.open(filename, 'r', encoding='utf-8') as file:
-#             prompt =  (await file.read()).strip()
+    # 기존 캐시에 동일한 내용이 있으면 그대로 사용
+    if category == "diet" and filename in prompt_cache:
+        if prompt_timestamps.get(filename) == last_modified_time:
+            return prompt_cache[filename]
         
-#         if not prompt:
-#             logger.error("프롬프트 파일 비어있음")
-#             raise FileAccessError()
+    # Redis에서 캐싱된 프롬프트 확인
+    redis_key = f"prompt:{category}:{filename}"
+    cached_prompt = redis_client.get(redis_key)
+
+    if cached_prompt:
+        return cached_prompt
+    
+    # 파일에서 직접 읽기
+    try:
+        async with aiofiles.open(filename, 'r', encoding='utf-8') as file:
+            prompt = (await file.read()).strip()
         
-#         # Redis에 프롬프트 캐싱(TTL : 1 hr)
-#         redis_client.setex(f"prompt:{filename}", CACHE_TTL, prompt)
-#         logger.info(f"Redis 프롬프트 캐싱 완료: {filename}")
+        if not prompt:
+            raise FileAccessError()
+        
+        # 기존 데이터와 다르면 캐시 업데이트
+        if category == "diet":
+            if filename in prompt_cache and prompt_cache[filename] == prompt:
+                return prompt
 
-#         return prompt
+            # 내용 변경
+            prompt_cache[filename] = prompt
+            prompt_timestamps[filename] = last_modified_time
 
-#     except Exception as e:
-#         logger.error(f"프롬프트 파일 읽기 실패: {e}")
-#         raise FileAccessError()
+        # Redis에 캐싱
+        redis_client.setex(redis_key, ttl, prompt)
+        return prompt
+
+    except Exception as e:
+        logger.error(f"프롬프트 파일 읽기 실패: {e}")
+        raise FileAccessError()
+    
+# 식습관 분석 프롬프트 미리 로드
+async def load_all_prompts():
+    
+    prompt_files = [
+        "diet_advice.txt", "nutrition_analysis.txt", "diet_improvement.txt",
+        "custom_recommendation.txt", "diet_summary.txt", "diet_eval.txt"
+    ]
+
+    for filename in prompt_files:
+        await read_prompt(filename=os.path.join(settings.PROMPT_PATH, filename), category="diet", ttl=604800)

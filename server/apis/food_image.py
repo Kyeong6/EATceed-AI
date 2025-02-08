@@ -1,12 +1,12 @@
 import os
 import base64
 import redis
-import aiofiles
 import time
 from datetime import datetime, timedelta
 from openai import AsyncOpenAI
 from pinecone.grpc import PineconeGRPC as Pinecone
 from core.config import settings
+from utils.file_handler import read_prompt
 from errors.business_exception import RateLimitExceeded, ImageAnalysisError, ImageProcessingError
 from errors.server_exception import FileAccessError, ServiceConnectionError, ExternalAPIError
 from logs.logger_config import get_logger
@@ -32,9 +32,6 @@ else:
 
 # 요청 제한 설정
 RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
-
-# 프롬프트 캐싱
-CACHE_TTL = 3600
 
 # 공용 로거
 logger = get_logger()
@@ -92,42 +89,12 @@ async def process_image_to_base64(file):
         logger.error(f"이미지 파일 처리 및 Base64 인코딩 실패: {e}")
         raise ImageProcessingError()
 
-
-# prompt를 불러오기
-async def read_prompt(filename):
-
-    # Redis에서 캐싱된 프롬프트 확인
-    cached_prompt = redis_client.get(f"prompt:{filename}")
-
-    if cached_prompt:
-        # logger.info(f"Redis 캐싱 프롬프트 사용: {filename}")
-        return cached_prompt
-
-    try:
-        async with aiofiles.open(filename, 'r', encoding='utf-8') as file:
-            prompt =  (await file.read()).strip()
-        
-        if not prompt:
-            logger.error("프롬프트 파일 비어있음")
-            raise FileAccessError()
-        
-        # Redis에 프롬프트 캐싱(TTL : 1 hr)
-        redis_client.setex(f"prompt:{filename}", CACHE_TTL, prompt)
-        logger.info(f"Redis 프롬프트 캐싱 완료: {filename}")
-
-        return prompt
-
-    except Exception as e:
-        logger.error(f"프롬프트 파일 읽기 실패: {e}")
-        raise FileAccessError()
-
-
 # 음식 이미지 분석 API: prompt_type은 함수명과 동일
 async def food_image_analyze(image_base64: str):
 
     # prompt 타입 설정
     prompt_file = os.path.join(settings.PROMPT_PATH, "image_detection.txt")
-    prompt = await read_prompt(prompt_file)
+    prompt = await read_prompt(prompt_file, category="image", ttl=3600)
 
     # prompt 내용 없을 경우
     if not prompt:
