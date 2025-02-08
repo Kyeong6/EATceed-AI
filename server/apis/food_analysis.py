@@ -1,6 +1,8 @@
 # 메인 로직 작성
 import os
+import time
 import pandas as pd
+import asyncio
 from datetime import datetime
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -8,6 +10,7 @@ from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from operator import itemgetter
 from langchain_core.runnables import RunnablePassthrough
 from core.config import settings
+from utils.file_handler import load_all_prompts
 from db.database import get_db
 from db.models import AnalysisStatus
 from db.crud import (create_eat_habits, get_user_data, get_all_member_id, get_last_weekend_meals, 
@@ -84,13 +87,13 @@ def weight_predict(user_data: dict) -> str:
         return '감소'
 
 # Analysis Multi-Chain 연결
-def create_multi_chain(input_data):
+async def create_multi_chain(input_data):
     try:
         # 체인 정의
-        nutrient_chain = create_nutrition_analysis_chain()
-        improvement_chain = create_improvement_chain()
-        recommendation_chain = create_diet_recommendation_chain()
-        summary_chain = create_summarize_chain()
+        nutrient_chain = await create_nutrition_analysis_chain()
+        improvement_chain = await create_improvement_chain()
+        recommendation_chain = await create_diet_recommendation_chain()
+        summary_chain = await create_summarize_chain()
         
         # 체인 실행 흐름 정의
         multi_chain = (
@@ -160,12 +163,13 @@ def compare_results(result_A, result_B, eval_A, eval_B):
         return result_B
 
 # 평가 후 재실행 함수: A/B 테스트 적용
-def run_multi_chain(user_data):
-    evaluation_chain = create_evaluation_chain()
+async def run_multi_chain(user_data):
+    evaluation_chain = await create_evaluation_chain()
 
     # 첫 번째 실행(A)
-    result_A = create_multi_chain(user_data).invoke(user_data)
-    evaluation_A = evaluation_chain.invoke({
+    multi_chain_A = await create_multi_chain(user_data)
+    result_A = await multi_chain_A.ainvoke(user_data)
+    evaluation_A = await evaluation_chain.ainvoke({
         **user_data,
         **result_A
     })
@@ -184,8 +188,9 @@ def run_multi_chain(user_data):
         return result_A_with_eval
     
     # 두 번째 실행(B)
-    result_B = create_multi_chain(user_data).invoke(user_data)
-    evaluation_B = evaluation_chain.invoke({
+    multi_chain_B = await create_multi_chain(user_data)
+    result_B = await multi_chain_B.ainvoke(user_data)
+    evaluation_B = await evaluation_chain.ainvoke({
         **user_data,
         **result_B
     })
@@ -210,17 +215,31 @@ def run_multi_chain(user_data):
     return final_result
 
 # 식습관 분석 실행 함수
-def run_analysis(db: Session, member_id: int):
+async def run_analysis(db: Session, member_id: int):
+
+    # 프롬프트 적재
+    await load_all_prompts()
+
     # 분석 상태 업데이트
     analysis_status = add_analysis_status(db, member_id)
 
     try:
         # 분석 시작 시간
-        start_time = datetime.now()
-        logger.info(f"분석 시작 member_id: {member_id} at {start_time}")
+        start_total = time.time()
+        logger.info(f"분석 시작 member_id: {member_id}")
+
+        # 1. 데이터베이스 조회 시간 측정
+        start_db = time.time()
 
         # 식사 기록 확인
         meals = get_last_weekend_meals(db, member_id)
+        # 유저 데이터 조회
+        user_data = get_user_data(db, member_id)
+
+        end_db = time.time()
+        db_time = round(end_db - start_db, 4)
+        logger.info(f"[DB Query Time] member_id={member_id}, 실행 시간: {db_time} sec")
+
         if not meals:
             logger.info(f"member_id={member_id}: 최근 7일간 식사 기록 없음")
 
@@ -234,9 +253,6 @@ def run_analysis(db: Session, member_id: int):
             # 식사 기록 없으므로 분석 진행하지 않고 종료
             return 
 
-        # 유저 데이터 조회
-        user_data = get_user_data(db, member_id)
-
         # 유저 데이터 조회 실패 예외처리 
         if not user_data:
             logger.error("run_analysis: user_data 조회 에러 발생")
@@ -245,8 +261,16 @@ def run_analysis(db: Session, member_id: int):
          # 리스트를 딕셔너리로 변환
         user_dict = {key: value for d in user_data["user"] for key, value in d.items()}
 
+        # 2. CSV 조회 시간 측정
+        start_csv = time.time()
+
         # 영양소 평균값 계산
         averages = filter_calculate_averages(settings.DATA_PATH, user_dict)
+
+        end_csv = time.time()
+        csv_time = round(end_csv - start_csv, 4)
+        logger.info(f"[CSV Read Time] member_id={member_id}, 실행 시간: {csv_time} sec")
+
         for key in ["carbo_avg", "protein_avg", "fat_avg"]:
             averages[key] = averages.get(key, "데이터 없음")
         
@@ -254,9 +278,12 @@ def run_analysis(db: Session, member_id: int):
         weight_result = weight_predict(user_data)
         user_data['weight_change'] = weight_result
 
+        # 3. 식습관 조언 Chain 실행 시간 측정
+        start_diet_chain = time.time()
+
         # 식습관 조언 독립 실행
-        advice_chain = create_advice_chain()
-        result_advice = advice_chain.invoke({
+        advice_chain = await create_advice_chain()
+        result_advice = await advice_chain.ainvoke({
             "gender": user_dict['gender'],
             "age": user_dict['age'],
             "height": user_dict['height'],
@@ -269,17 +296,27 @@ def run_analysis(db: Session, member_id: int):
             "protein_avg": averages["protein_avg"],
             "fat_avg": averages["fat_avg"]
         })
-        logger.info(f"Advice chain result: {result_advice}")
+
+        end_diet_chain = time.time()
+        diet_chian_time = round(end_diet_chain - start_diet_chain, 4)
+        logger.info(f"[Diet-Chain Execution Time] member_id={member_id}, 실행 시간: {diet_chian_time} sec")
 
         updated_user_data = {
-            **user_dict,  # 🔥 user_dict의 모든 값을 포함
+            **user_dict, 
             "carbo_avg": averages["carbo_avg"],
             "protein_avg": averages["protein_avg"],
             "fat_avg": averages["fat_avg"]
         }
+        
+        # 4. Multi-Chain 실행 시간 측정
+        start_multi_chain = time.time()
 
         # Multi-Chain 실행
-        final_results = run_multi_chain(updated_user_data)
+        final_results = await run_multi_chain(updated_user_data)
+
+        end_multi_chain = time.time()
+        multi_chain_time = round(end_multi_chain - start_multi_chain, 4)
+        logger.info(f"[Multi-Chain Execution Time] member_id={member_id}, 실행 시간: {multi_chain_time} sec")
 
         # 식습관 조언 데이터 저장
         eat_habits = create_eat_habits(
@@ -318,31 +355,52 @@ def run_analysis(db: Session, member_id: int):
     
     finally:
         # 분석 종료 시간
-        end_time = datetime.now()
-        logger.info(f"분석 완료 member_id: {member_id} at {end_time} (Elapsed time: {end_time - start_time})")
+        end_total = time.time()
+        total_time = round(end_total - start_total, 4)
+        logger.info(f"[Total Execution Time] member_id={member_id}, 실행 시간: {total_time}")
+
+
+# run_analysis 비동기처리
+async def run_analysis_async(member_id: int, semaphore: asyncio.Semaphore):
+    # OpenAI API Rate-Limit 고려
+    async with semaphore:
+        db = next(get_db())
+        try:
+            await run_analysis(db, member_id)
+            await asyncio.sleep(1)
+        except Exception as e:
+            db.rollback()
+            logger.error(f"식습관 분석 실패 member_id: {member_id} - {e}")
+        finally:
+            db.close()
 
 # 스케줄링 설정
-def scheduled_task():
+async def scheduled_task():
     try:
-        # Session Pool에서 get_all_member_id 실행을 위한 임시 세션
+        # 스케줄러 전체 실행 소요시간
+        start_time = time.time() 
+
         db_temp = next(get_db())
-        # 유저 테이블에 존재하는 모든 member_id 조회
         member_ids = get_all_member_id(db_temp)
         db_temp.close()
 
-        # 각 회원의 식습관 분석 수행
-        # 현재는 for문을 통한 순차적으로 분석을 업데이트하지만, 추후에 비동기적 처리 필요
-        for member_id in member_ids:
-            db: Session = next(get_db())
-            try:
-                run_analysis(db, member_id)
-            except Exception as e:
-                db.rollback()
-                logger.error(f"식습관 분석 실패 member_id: {member_id} - {e}")
-            finally:
-                db.close()
+        # semaphore 생성
+        semaphore = asyncio.Semaphore(10)
+
+        # 병렬 실행: 모든 회원의 분석 동시에 실행
+        tasks = [asyncio.create_task(run_analysis_async(member_id, semaphore)) for member_id in member_ids]
+        await asyncio.gather(*tasks)
+
+        end_time = time.time()
+        total_scheduler_time = round(end_time - start_time, 4)
+        logger.info(f"[Scheduler Total Execution Time] 전체 실행 시간: {total_scheduler_time} sec")
+
     except Exception as e:
         logger.error(f"스케줄링 전체 작업 중 오류 발생: {e}")
+
+# APScheduler에서 실행할 수 있도록 비동기 함수 실행 warpper 추가
+def run_async_task():
+    asyncio.run(scheduled_task())
 
 # APScheduler 설정 및 시작
 def start_scheduler():
@@ -351,10 +409,12 @@ def start_scheduler():
     # # 테스트 진행 스케줄러
     # start_time = datetime.now() + timedelta(seconds=3)
     # trigger = DateTrigger(run_date=start_time)
-    # scheduler.add_job(scheduled_task, trigger=trigger)
+    
+    # # APScheduler가 실행되는 쓰레드에서 run_async_task 실행
+    # scheduler.add_job(run_async_task, trigger=trigger)
 
     # 운영용 스케줄러
-    scheduler.add_job(scheduled_task, 'cron', day_of_week='mon', hour=0, minute=0)
+    scheduler.add_job(run_async_task, 'cron', day_of_week='mon', hour=0, minute=0)
 
     scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
     scheduler.start()
