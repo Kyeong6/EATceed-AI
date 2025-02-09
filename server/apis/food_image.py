@@ -1,37 +1,16 @@
 import os
 import base64
-import redis
 import time
-from datetime import datetime, timedelta
+import asyncio
 from openai import AsyncOpenAI
+from openai import RateLimitError, APIError, APIConnectionError, APITimeoutError
 from pinecone.grpc import PineconeGRPC as Pinecone
 from core.config import settings
 from utils.file_handler import read_prompt
-from errors.business_exception import RateLimitExceeded, ImageAnalysisError, ImageProcessingError
-from errors.server_exception import FileAccessError, ServiceConnectionError, ExternalAPIError
+from fallback.fallback_food_image import food_image_analyze_fallback
+from errors.business_exception import ImageAnalysisError, ImageProcessingError
+from errors.server_exception import FileAccessError, ExternalAPIError
 from logs.logger_config import get_logger
-
-# 환경에 따른 설정 파일 로드
-if os.getenv("APP_ENV") in ["prod", "dev"]:
-
-    # 운영: Redis 클라이언트 설정
-    redis_client = redis.StrictRedis(
-        host=settings.REDIS_HOST,
-        port=settings.REDIS_PORT,
-        password=settings.REDIS_PASSWORD,
-        decode_responses=True
-    )
-else:
-    # 개발: Redis 클라이언트 설정
-    redis_client = redis.StrictRedis(
-        host=settings.REDIS_LOCAL_HOST,  
-        port=settings.REDIS_PORT,
-        password=settings.REDIS_PASSWORD,
-        decode_responses=True
-    )
-
-# 요청 제한 설정
-RATE_LIMIT = settings.RATE_LIMIT  # 하루 최대 요청 가능 횟수
 
 # 공용 로거
 logger = get_logger()
@@ -48,32 +27,6 @@ upstage = AsyncOpenAI(
 # Pinecone 설정
 pc = Pinecone(api_key=settings.PINECONE_API_KEY)
 index = pc.Index(host=settings.INDEX_HOST)
-
-
-# Redis 기반 요청 제한 함수
-def rate_limit_user(user_id: int, increment=False):
-    redis_key = f"rate_limit:{user_id}"
-    current_count = redis_client.get(redis_key)
-
-    # 요청 횟수 확인
-    if current_count:
-        if int(current_count) >= RATE_LIMIT:
-            logger.info(f"음식 이미지 분석 기능 횟수 제한: {user_id}")
-            # 기능 횟수 제한 예외처리
-            raise RateLimitExceeded()
-    
-    # 요청 성공시에만 증가
-    if increment:
-        redis_client.incr(redis_key)
-        if current_count is None:
-            # 매일 자정 횟수 리셋
-            next_time = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-            redis_client.expireat(redis_key, int(next_time.timestamp()))
-    
-    remaining_requests = RATE_LIMIT - int(current_count or 0) - (1 if increment else 0)
-
-    return remaining_requests
-
 
 # Multi-part 방식 이미지 처리 및 Base64 인코딩
 async def process_image_to_base64(file):
@@ -101,39 +54,54 @@ async def food_image_analyze(image_base64: str):
         logger.error("image_detection.txt에 prompt 내용 미존재")
         raise FileAccessError()
 
-    # OpenAI API 호출
-    response = await client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {
-                "role": "user",
-                "content": [
+    # 지수 백오프 전략: 최대 3번 재시도
+    max_retries = 2
+    for attemp in range(max_retries):
+        try:
+            # OpenAI API 호출
+            response = await client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
                     {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{image_base64}",
-                            # 성능이 좋아지지만, token 소모 큼(tradeoff): 검증 필요
-                            # "detail": "high"
-                        }
-                    }
-                ]
-            },
-            {"role": "system", "content": prompt}
-        ],
-        temperature=0.0,
-        max_tokens=300
-    )
-    
-    result = response.choices[0].message.content
-    # print(result)
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{image_base64}",
+                                    # 성능이 좋아지지만, token 소모 큼(tradeoff): 검증 필요
+                                    # "detail": "high"
+                                }
+                            }
+                        ]
+                    },
+                    {"role": "system", "content": prompt}
+                ],
+                temperature=0.0,
+                max_tokens=300
+            )
+            
+            result = response.choices[0].message.content
+            
+            # 응답 반환
+            if result:
+                return result
+
+        except (RateLimitError, APIError, APIConnectionError, APITimeoutError) as e:
+                logger.error(f"Food Image Analysis: OpenAI 오류 발생(시도 {attemp+1}/{max_retries}): {e}")
+
+                # 마지막 재시도 실패 시 Fallback 수행
+                if attemp == max_retries - 1:
+                    logger.error(f"Food Image Analysis: OpenAI 3회 재시도 후 실패 Fallback 실행")
+                    result = await food_image_analyze_fallback(image_base64, prompt)
+
+                    return result
+
+                await asyncio.sleep(attemp ** 2)
 
     # 음식명(반환값)이 존재하지 않을 경우
-    if not result:
-        logger.error("OpenAI API 음식명 얻기 실패")
-        raise ImageAnalysisError()
-
-    # 음식 이미지 분석 
-    return result
+    logger.error("OpenAI API / Claude API 음식명 얻기 실패")
+    raise ImageAnalysisError()
 
 
 # 제공받은 음식의 벡터 임베딩 값 변환 작업 수행(Upstage-Embedding 사용)
@@ -185,26 +153,3 @@ async def search_similar_food(query_name, top_k=3, score_threshold=0.7, candidat
     except Exception as e:
         logger.error(f"유사도 검색 실패: {e}")
         raise ExternalAPIError()
-
-
-# Redis의 정의된 잔여 기능 횟수 확인
-async def get_remaining_requests(member_id: int):
-
-    try:
-        # Redis 키 생성
-        redis_key = f"rate_limit:{member_id}"
-
-        # Redis에서 사용자의 요청 횟수 조회
-        current_count = redis_client.get(redis_key)
-
-        # 요청 횟수가 없다면 기본값 반환(RATE_LIMIT)
-        if current_count is None:
-            return RATE_LIMIT
-
-        # 남은 요청 횟수
-        remaining_requests = max(RATE_LIMIT - int(current_count), 0)
-        return remaining_requests
-
-    except Exception as e:
-        logger.error(f"잔여 기능 횟수 확인 중 에러가 발생했습니다: {e}")
-        raise ServiceConnectionError()

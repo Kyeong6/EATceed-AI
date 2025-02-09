@@ -1,29 +1,11 @@
 import os
-import redis
 import time
 import aiofiles
 from errors.server_exception import FileAccessError
 from logs.logger_config import get_logger
 from core.config import settings
+from core.config_redis import redis_client
 
-# 환경에 따른 설정 파일 로드
-if os.getenv("APP_ENV") in ["prod", "dev"]:
-
-    # 운영: Redis 클라이언트 설정
-    redis_client = redis.StrictRedis(
-        host=settings.REDIS_HOST,
-        port=settings.REDIS_PORT,
-        password=settings.REDIS_PASSWORD,
-        decode_responses=True
-    )
-else:
-    # 개발: Redis 클라이언트 설정
-    redis_client = redis.StrictRedis(
-        host=settings.REDIS_LOCAL_HOST,  
-        port=settings.REDIS_PORT,
-        password=settings.REDIS_PASSWORD,
-        decode_responses=True
-    )
 
 # 공용 로거 
 logger = get_logger()

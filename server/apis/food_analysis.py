@@ -3,14 +3,17 @@ import os
 import time
 import pandas as pd
 import asyncio
+import functools
 from datetime import datetime
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from operator import itemgetter
 from langchain_core.runnables import RunnablePassthrough
+from langchain_anthropic import ChatAnthropic
 from core.config import settings
 from utils.file_handler import load_all_prompts
+from utils.redis_integration import rate_limit_check
 from db.database import get_db
 from db.models import AnalysisStatus
 from db.crud import (create_eat_habits, get_user_data, get_all_member_id, get_last_weekend_meals, 
@@ -20,6 +23,8 @@ from templates.prompt_template import (create_advice_chain, create_nutrition_ana
                                        create_diet_recommendation_chain, create_summarize_chain, create_evaluation_chain)
 from errors.server_exception import ExternalAPIError, FileAccessError, QueryError
 from logs.logger_config import get_logger
+from openai import RateLimitError, APIConnectionError, APIStatusError, APITimeoutError
+
 
 # 스케줄러 테스트
 from datetime import timedelta
@@ -31,6 +36,32 @@ logger = get_logger()
 # 정량적 평가 기준(임계값)
 THRESHOLD_RELEVANCE= 3.0
 THRESHOLD_FAITHFULNESS= 0.6
+
+# 지수 백오프 및 Fallback(Multi-Chain)
+def retry_with_fallback(max_retries=3, initial_delay=1, backoff_factor=2):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            attempts = 0
+            delay = initial_delay
+            while attempts < max_retries:
+                try:
+                    # API 호출 전 Rate-Limit 확인
+                    await rate_limit_check()
+                    return await func(*args, **kwargs)
+                except (RateLimitError, APITimeoutError, APIConnectionError, APIStatusError) as e:
+                    attempts += 1
+                    logger.error(f"[Diet Analysis Error] {e} 발생: {delay}초 후 재시도(시도 {attempts}/{max_retries}")
+                    await asyncio.sleep(delay)
+                    delay *= backoff_factor
+            # 재시도 횟수 초과시 Fallback 호출
+            logger.info("재시도 횟수 초과: Fallback 실행")
+            # Fallback 모델
+            fallback_llm = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0, max_tokens=250)
+            return await run_combined_chain(args[0], llm_override=fallback_llm)
+        return wrapper
+    return decorator
+
 
 # csv 파일 조회 및 필터링 진행
 def filter_calculate_averages(data_path, user_data):
@@ -87,13 +118,13 @@ def weight_predict(user_data: dict) -> str:
         return '감소'
 
 # Analysis Multi-Chain 연결
-async def create_multi_chain(input_data):
+async def create_multi_chain(input_data, llm_override=None):
     try:
         # 체인 정의
-        nutrient_chain = await create_nutrition_analysis_chain()
-        improvement_chain = await create_improvement_chain()
-        recommendation_chain = await create_diet_recommendation_chain()
-        summary_chain = await create_summarize_chain()
+        nutrient_chain = await create_nutrition_analysis_chain(llm_override)
+        improvement_chain = await create_improvement_chain(llm_override)
+        recommendation_chain = await create_diet_recommendation_chain(llm_override)
+        summary_chain = await create_summarize_chain(llm_override)
         
         # 체인 실행 흐름 정의
         multi_chain = (
@@ -162,17 +193,15 @@ def compare_results(result_A, result_B, eval_A, eval_B):
         logger.info(f"A/B 테스트 결과 → 두 번째 실행 결과(B) 선택")
         return result_B
 
+
 # 평가 후 재실행 함수: A/B 테스트 적용
-async def run_multi_chain(user_data):
-    evaluation_chain = await create_evaluation_chain()
+async def run_multi_chain(user_data, llm_override=None):
+    evaluation_chain = await create_evaluation_chain(llm_override)
 
     # 첫 번째 실행(A)
-    multi_chain_A = await create_multi_chain(user_data)
+    multi_chain_A = await create_multi_chain(user_data, llm_override)
     result_A = await multi_chain_A.ainvoke(user_data)
-    evaluation_A = await evaluation_chain.ainvoke({
-        **user_data,
-        **result_A
-    })
+    evaluation_A = await evaluation_chain.ainvoke({**user_data, **result_A})
 
     # 첫 번째 실행 평가 결과 추가(A)
     result_A_with_eval = {**result_A, "evaluation": evaluation_A}
@@ -188,12 +217,9 @@ async def run_multi_chain(user_data):
         return result_A_with_eval
     
     # 두 번째 실행(B)
-    multi_chain_B = await create_multi_chain(user_data)
+    multi_chain_B = await create_multi_chain(user_data, llm_override)
     result_B = await multi_chain_B.ainvoke(user_data)
-    evaluation_B = await evaluation_chain.ainvoke({
-        **user_data,
-        **result_B
-    })
+    evaluation_B = await evaluation_chain.ainvoke({**user_data,**result_B})
 
     # 두 번째 실행 평가 결과 추가(B)
     result_B_with_eval = {**result_B, "evaluation": evaluation_B}
@@ -214,6 +240,23 @@ async def run_multi_chain(user_data):
     
     return final_result
 
+# Multi-Chain + Advice-Chain
+async def run_combined_chain(input_data, llm_override=None):
+    advice_chain = await create_advice_chain(llm_override)
+    
+    # 병렬 실행
+    advice_task = asyncio.create_task(advice_chain.ainvoke(input_data))
+    multi_chain_task = asyncio.create_task(run_multi_chain(input_data, llm_override))
+    advice_result, multi_chain_result = await asyncio.gather(advice_task, multi_chain_task)
+    final_result = {**multi_chain_result, "diet_advice": advice_result}
+    return final_result
+
+# Fallback 기능이 적용
+@retry_with_fallback(max_retries=3, initial_delay=1, backoff_factor=2)
+async def perform_diet_analsyis(user_data, llm_override=None):
+    result = await run_combined_chain(user_data, llm_override=llm_override)
+    return result
+
 # 식습관 분석 실행 함수
 async def run_analysis(db: Session, member_id: int):
 
@@ -231,9 +274,8 @@ async def run_analysis(db: Session, member_id: int):
         # 1. 데이터베이스 조회 시간 측정
         start_db = time.time()
 
-        # 식사 기록 확인
+        # 식사 기록 / 유저 데이터 확인
         meals = get_last_weekend_meals(db, member_id)
-        # 유저 데이터 조회
         user_data = get_user_data(db, member_id)
 
         end_db = time.time()
@@ -278,29 +320,6 @@ async def run_analysis(db: Session, member_id: int):
         weight_result = weight_predict(user_data)
         user_data['weight_change'] = weight_result
 
-        # 3. 식습관 조언 Chain 실행 시간 측정
-        start_diet_chain = time.time()
-
-        # 식습관 조언 독립 실행
-        advice_chain = await create_advice_chain()
-        result_advice = await advice_chain.ainvoke({
-            "gender": user_dict['gender'],
-            "age": user_dict['age'],
-            "height": user_dict['height'],
-            "weight": user_dict['weight'],
-            "physical_activity_index": user_dict['physical_activity_index'],
-            "carbohydrate": user_data['user'][8]['carbohydrate'],
-            "protein": user_data['user'][6]['protein'],
-            "fat": user_data['user'][7]['fat'],
-            "carbo_avg": averages["carbo_avg"],
-            "protein_avg": averages["protein_avg"],
-            "fat_avg": averages["fat_avg"]
-        })
-
-        end_diet_chain = time.time()
-        diet_chian_time = round(end_diet_chain - start_diet_chain, 4)
-        logger.info(f"[Diet-Chain Execution Time] member_id={member_id}, 실행 시간: {diet_chian_time} sec")
-
         updated_user_data = {
             **user_dict, 
             "carbo_avg": averages["carbo_avg"],
@@ -308,23 +327,23 @@ async def run_analysis(db: Session, member_id: int):
             "fat_avg": averages["fat_avg"]
         }
         
-        # 4. Multi-Chain 실행 시간 측정
+        # 3. Chain 실행 시간 측정
         start_multi_chain = time.time()
 
-        # Multi-Chain 실행
-        final_results = await run_multi_chain(updated_user_data)
+        # Chain 실행(with Fallback)
+        final_results = await perform_diet_analsyis(updated_user_data)
 
         end_multi_chain = time.time()
         multi_chain_time = round(end_multi_chain - start_multi_chain, 4)
-        logger.info(f"[Multi-Chain Execution Time] member_id={member_id}, 실행 시간: {multi_chain_time} sec")
+        logger.info(f"[Chain Execution Time] member_id={member_id}, 실행 시간: {multi_chain_time} sec")
 
         # 식습관 조언 데이터 저장
         eat_habits = create_eat_habits(
             db=db,
             weight_prediction=weight_result,
-            advice_carbo=result_advice["carbo_advice"],
-            advice_protein=result_advice["protein_advice"],
-            advice_fat=result_advice["fat_advice"],
+            advice_carbo=final_results["diet_advice"]["carbo_advice"],
+            advice_protein=final_results["diet_advice"]["protein_advice"],
+            advice_fat=final_results["diet_advice"]["fat_advice"],
             summarized_advice=final_results["diet_summary"],
             analysis_status_id=analysis_status.STATUS_PK,
             avg_calorie=user_data['user'][5]['calorie']

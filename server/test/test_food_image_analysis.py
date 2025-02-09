@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-import redis
 import pandas as pd
 from fastapi.testclient import TestClient
 
@@ -13,17 +12,10 @@ os.chdir(project_root)
 from main import app  
 
 from core.config import settings
+from core.config_redis import redis_client
 
 # 클라이언트 설정
 client = TestClient(app) 
-
-# Redis 클라이언트 설정
-redis_client = redis.StrictRedis(
-    host=settings.REDIS_LOCAL_HOST,
-    port=settings.REDIS_PORT,
-    password=settings.REDIS_PASSWORD,
-    decode_responses=True
-)
 
 # 테스트 진행을 위한 Rate limit 초기화
 def reset_rate_limit(user_id: int):
