@@ -425,15 +425,15 @@ def run_async_task():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone="Asia/Seoul")
     
-    # 테스트 진행 스케줄러
-    start_time = datetime.now() + timedelta(seconds=3)
-    trigger = DateTrigger(run_date=start_time)
+    # # 테스트 진행 스케줄러
+    # start_time = datetime.now() + timedelta(seconds=3)
+    # trigger = DateTrigger(run_date=start_time)
     
-    # APScheduler가 실행되는 쓰레드에서 run_async_task 실행
-    scheduler.add_job(run_async_task, trigger=trigger)
+    # # APScheduler가 실행되는 쓰레드에서 run_async_task 실행
+    # scheduler.add_job(run_async_task, trigger=trigger)
 
-    # # 운영용 스케줄러
-    # scheduler.add_job(run_async_task, 'cron', day_of_week='mon', hour=0, minute=0)
+    # 운영용 스케줄러
+    scheduler.add_job(run_async_task, 'cron', day_of_week='mon', hour=0, minute=0)
 
     scheduler.add_listener(scheduler_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
     scheduler.start()
