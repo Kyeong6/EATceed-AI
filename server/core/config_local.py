@@ -25,6 +25,9 @@ class Settings:
     # Upstage
     UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
 
+    # Claude
+    CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
+
     # Data
     DATA_PATH = os.getenv("DATA_PATH")
     DOCKER_DATA_PATH = os.getenv("DOCKER_DATA_PATH")
