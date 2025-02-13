@@ -208,3 +208,6 @@ server/test/test_image
 
 # food.csv(대용량)
 server/data/food.csv
+
+# google api
+lambda/service_account.json
