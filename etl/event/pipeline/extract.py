@@ -28,9 +28,9 @@ def request_data():
             'pageNo': str(page),
             'numOfRows': str(num_of_rows),
             'type': 'json',
-            # 'foodCd': 'D304-179000000-0001'
             'crtYmd': today,
-            'crtrYmd': today
+            'crtrYmd': today,
+            # 'foodCd': 'D304-179000000-0001'
         }
         response = requests.get(settings.API_URL, params=params)
 

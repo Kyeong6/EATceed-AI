@@ -210,4 +210,11 @@ server/test/test_image
 server/data/food.csv
 
 # google api
-lambda/service_account.json
+service_account.json
+
+# etl zip file
+lambda_function.zip
+python.zip
+
+# etl library
+dependency_check.txt
