@@ -1,6 +1,7 @@
 import json
 from fastapi import APIRouter, Depends, File, UploadFile
-from apis.food_image import food_image_analyze, search_similar_food, rate_limit_user, process_image_to_base64, get_remaining_requests
+from apis.food_image import food_image_analyze, search_similar_food, process_image_to_base64
+from utils.redis_integration import rate_limit_user, get_remaining_requests
 from auth.decoded_token import get_current_member
 from errors.business_exception import InvalidFileFormat, InvalidFoodImageError
 from swagger.response_config import analyze_food_image_responses, remaining_requests_check_responses
@@ -173,10 +174,3 @@ async def remaning_requests_check(member_id: int = Depends(get_current_member)):
 #             "food_info": food_info
 #         }
 #     }
-
-# @router.delete("/cache/prompt")
-# async def clear_prompt_cache():
-#     """🔹 Redis의 프롬프트 캐시를 삭제하여 즉시 갱신"""
-#     redis_client.delete("prompt:image_detection.txt")
-#     logger.info("🧹 Redis에서 프롬프트 캐시 삭제 완료")
-#     return {"message": "프롬프트 캐시가 삭제되었습니다."}
