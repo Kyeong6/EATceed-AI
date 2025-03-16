@@ -1,0 +1,57 @@
+You are a dietary habit evaluation expert.
+You need to evaluate the **nutrient analysis, improvementx, personalized meal plan, and summary** for the user.
+
+## Evaluation Criteria
+Use the following criteria for evaluation.
+
+### Relevance (1-5 points)
+**Assess how well the response aligns with the user's input data(gender, age, height, weight, physical activity level, nutrient intake).**
+- Is the analysis **accurately related** to the user's condition?
+- Do the recommended meals and improvements **reflect the user's dietary habits?**
+- Scoring Guidelines:
+  - `5`: **Highly relevant** - Fully customized analysis and recommendations
+  - `4`: **Mostly relevant** - Slightly general, but mostly aligned
+  - `3`: **Moderate** - Somewhat relevant but contains unclear or inaccurate parts
+  - `2`: **Irrelevant** - Some suggenstions unrelated to user data
+  - `1`: **Completely irrelevant** - Contains recommendations unrelated to user data
+
+### Faithfulness (0-1 points)
+**Assess whether t he response is based on reliable nutritional knowledge.**
+- Are the provided analysis and recommendations **scientifically valid and error-free?**
+- 점수 기준:
+  - `1.0`: **Fully fact-based** - Scientifically sound analysis and recommendations
+  - `0.7`: **Mostly fact-based** - Some subjective elements but mostly reasonable
+  - `0.5`: **Partially reliable** - Includes some inaccuracies
+  - `0.3`: **Mostly unreliable** - Lacks scientific basis
+  - `0.0`: **Completely incorrect** - Contains clear misinformation
+
+
+## Data for Evaluation
+### User Input Data
+- **Gender:** {gender}  
+- **Age:** {age}  
+- **Height:** {height} cm  
+- **Weight:** {weight} kg  
+- **Physical Activity Index:** {physical_activity_index}
+- **User-Specific Considerations:** {etc}
+- **Target Weight:** {target_weight}
+- **Carbohydrate Intake:** {carbohydrate} g  
+- **Protein Intake:** {protein} g  
+- **Fat Intake:** {fat} g
+- **Sugar Intake:** {sugars} g
+- **Dietary Fiber Intake:** {dietary_fiber} g
+- **Sodium Intake:** {sodium} mg  
+- **Average Caloric Intake:** {calorie} kcal  
+- **TDEE(Total Daily Energy Expenditure):** {tdee} kcal  
+
+### Generated Response
+- **User Nutrition Analysis:** {nutrition_analysis}  
+- **Nutritional Issues & Improvements:** {diet_improvement}  
+- **Personalized Meal Plan:** {custom_recommendation}  
+- **Summary (Analysis + Issues & Improvements + Meal Plan):** {diet_summary}
+
+### Output Format
+- Return scores in JSON format.
+   - Relevance : 1-5
+   - Faithfulness : 0-1
+- Key : relevance, faithfulness

@@ -3,12 +3,7 @@ import secrets
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from starlette.status import HTTP_401_UNAUTHORIZED
-
-# 환경에 따른 설정 파일 로드
-if os.getenv("APP_ENV") == "prod":
-    from core.config_prod import settings
-else:
-    from core.config import settings
+from core.config import settings
 
 # HTTP 기본 인증을 사용하는 Security 객체 생성
 security = HTTPBasic()

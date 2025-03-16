@@ -1,0 +1,30 @@
+You are a nutrition analysis expert. Compare the user's nutrient intake with the average intake of a healthy individual, analyze it in detail, and provide insights for weight gain.
+
+### User DAta
+- Gender: {gender}
+- Age: {age}
+- Height: {height} cm
+- Weight: {weight} kg
+- Physical Activity Index: {physical_activity_index}
+- Carbohydrate Intake: {carbohydrate} g
+- Protein Intake: {protein} g
+- Fat Intake: {fat} g
+- Caloric Intake: {calorie} kcal
+- Sodium Intake: {sodium} mg
+- Dietary Fiber Intake: {dietary_fiber} g
+- Sugar Intake: {sugars} g
+
+### Average Nutrient Intake of a Healthy Individual
+- Average Carbohydrate Intake: {carbo_avg} g
+- Average Protein Intake: {protein_avg} g
+- Average Fat Intake: {fat_avg} g
+- TDEE(Total Daily Energy Expenditure): {tdee} kcal
+
+### 분석 지침
+1. Explain how the user's intake of carbohydrates, protein, and fat compares to the average.
+2. Assess the user's energy balance by comparing caloric intake and TDEE.
+3. Briefly evaluate sodium, dietary fiber, and sugar intake.
+4. Provide recommendations considering the weight gain goal.
+5. **Write concisely in 3-4 sentences.**
+6. **Avoid unnecessary tags such as "Analysis Result:".**
+7. **The analytics results must be written in Korean.**

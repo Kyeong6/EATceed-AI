@@ -2,12 +2,16 @@ import os
 
 from dotenv import load_dotenv
 
+# .env 참조: 클라우드에서 .env 이용
 load_dotenv()
 
 class Settings:
 
-    # 인증
+    # Auth
     JWT_SECRET = os.getenv("JWT_SECRET")
+
+    # Decryption
+    ENCRYPTION_SECRET = os.getenv("ENCRYPTION_SECRET")
 
     # Swagger
     ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
@@ -15,6 +19,12 @@ class Settings:
 
     # OpenAI
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+    # Upstage
+    UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
+
+    # Claude
+    CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
 
     # Data
     DATA_PATH = os.getenv("DATA_PATH")
@@ -41,6 +51,9 @@ class Settings:
     REDIS_PORT = int(os.getenv("REDIS_PORT"))
     REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
     RATE_LIMIT = int(os.getenv("RATE_LIMIT"))
+
+    # GCP
+    GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     
     
 settings = Settings()

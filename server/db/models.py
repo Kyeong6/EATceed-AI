@@ -26,12 +26,29 @@ class Member(Base):
     MEMBER_WEIGHT = Column(Double, nullable=True)
     MEMBER_TARGET_WEIGHT = Column(Double, nullable=True)
     MEMBER_CHECKED = Column(Boolean, nullable=False, default=False)
+    AGREEMENT_FK = Column(BigInteger, ForeignKey('AGREEMENT_TB.AGREEMENT_PK'), nullable=False)
 
+    agreement = relationship("Agreement", back_populates="members")
     foods = relationship("Food", back_populates="member", cascade="all, delete-orphan")
     meals = relationship("Meal", back_populates="member", cascade="all, delete-orphan")
     histories = relationship("History", back_populates="member", cascade="all, delete-orphan")
     notifications = relationship("Notify", back_populates="member", cascade="all, delete-orphan")
     analysis_status = relationship("AnalysisStatus", back_populates="member", cascade="all, delete-orphan")
+
+# AGREEMENT_TB 구성
+class Agreement(Base):
+    __tablename__ = "AGREEMENT_TB"
+
+    AGREEMENT_PK = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    CREATED_DATE = Column(DateTime(6), nullable=False)
+    UPDATED_DATE = Column(DateTime(6), nullable=False)
+    AGREEMENT_IS_PRIVACY_POLICY_AGREE = Column(Boolean, nullable=False)
+    AGREEMENT_IS_TERMS_SERVICE_AGREE = Column(Boolean, nullable=False)
+    AGREEMENT_IS_OVER_AGE = Column(Boolean, nullable=False)
+    AGREEMENT_IS_SENSITIVE_DATA_AGREE = Column(Boolean, nullable=False)
+
+    members = relationship("Member", back_populates="agreement")
+
 
 # FOOD_TB 구성
 class Food(Base):
@@ -105,10 +122,23 @@ class EatHabits(Base):
     ADVICE_CARBO = Column(Text, nullable=False)
     ADVICE_PROTEIN = Column(Text, nullable=False)
     ADVICE_FAT = Column(Text, nullable=False)
-    SYNTHESIS_ADVICE = Column(Text, nullable=False)
+    SUMMARIZED_ADVICE = Column(Text, nullable=False)
     AVG_CALORIE = Column(Double, nullable=False)
 
     analysis_status = relationship("AnalysisStatus", back_populates="eat_habits")
+    diet_analysis = relationship("DietAnalysis", back_populates="eat_habits", cascade="all, delete-orphan")
+
+# DIET_ANALYSIS_TB 구성
+class DietAnalysis(Base):
+    __tablename__ = "DIET_ANALYSIS_TB"
+    
+    DIET_ANALYSIS_PK = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    EAT_HABITS_FK = Column(BigInteger, ForeignKey('EAT_HABITS_TB.EAT_HABITS_PK', ondelete='CASCADE'), nullable=True)
+    NUTRIENT_ANALYSIS = Column(Text, nullable=False)
+    DIET_IMPROVE = Column(Text, nullable=False)
+    CUSTOM_RECOMMEND = Column(Text, nullable=False)
+
+    eat_habits = relationship("EatHabits", back_populates="diet_analysis")
 
 # HISTORY_TB 구성
 class History(Base):
@@ -142,6 +172,16 @@ class Notify(Base):
 
     # Relationships
     member = relationship("Member", back_populates="notifications")
+
+# ANNOUNCE_TB 구성
+class Announce(Base):
+    __tablename__ = "ANNOUNCE_TB"
+
+    ANNOUNCE_PK = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    CREATED_DATE = Column(DateTime(6), nullable=False)
+    UPDATED_DATE = Column(DateTime(6), nullable=False)
+    ANNOUNCE_CONTENT = Column(String(255), nullable=False)
+    ANNOUNCE_TITLE = Column(String(255), nullable=False)
 
 
 # 테이블을 생성하고 매퍼를 추가

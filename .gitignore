@@ -5,7 +5,7 @@
 .env
 .env.dev
 .env.prod
-.env.public
+.env.local
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
@@ -204,6 +204,17 @@ redis.conf
 
 # test/data
 server/test/image
+server/test/test_image
 
 # food.csv(대용량)
 server/data/food.csv
+
+# google api
+service_account.json
+
+# etl zip file
+lambda_function.zip
+python.zip
+
+# etl library
+dependency_check.txt

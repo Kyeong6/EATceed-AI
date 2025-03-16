@@ -1,0 +1,26 @@
+version: '3'
+services:
+  mariadb:
+    image: mariadb:10.6
+    container_name: local-mariadb
+    ports:
+      - "3306:3306"
+    environment:
+      - MARIADB_ROOT_PASSWORD=eatceed
+      - MYSQL_DATABASE=gaebaljip
+      - MYSQL_USER=gaebaljip-local
+      - MYSQL_PASSWORD=gaebaljip-local
+    volumes:
+      - ./db_data:/var/lib/mysql
+      - ./init/init.sql:/docker-entrypoint-initdb.d/init.sql 
+
+  redis:
+    image: redis:6.2
+    container_name: local-redis
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_PASSWORD=gaebaljip-local
+    command: ["redis-server", "--requirepass", "gaebaljip-local"]
+    volumes:
+      - ./redis_data:/data
