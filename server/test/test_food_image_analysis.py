@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-import redis
 import pandas as pd
 from fastapi.testclient import TestClient
 
@@ -13,17 +12,10 @@ os.chdir(project_root)
 from main import app  
 
 from core.config import settings
+from core.config_redis import redis_client
 
 # 클라이언트 설정
 client = TestClient(app) 
-
-# Redis 클라이언트 설정
-redis_client = redis.StrictRedis(
-    host=settings.REDIS_LOCAL_HOST,
-    port=settings.REDIS_PORT,
-    password=settings.REDIS_PASSWORD,
-    decode_responses=True
-)
 
 # 테스트 진행을 위한 Rate limit 초기화
 def reset_rate_limit(user_id: int):
@@ -92,9 +84,13 @@ for idx, image_file in enumerate(image_files, start=1):
                     food["food_name"] for food in food_item.get("similar_foods", []) 
                     if food["food_name"] is not None
                 ]
+                similar_food_pks_list = [
+                    str(food["food_pk"]) for food in food_item.get("similar_foods", []) if food["food_pk"] is not None
+                ]
 
                 # 유사한 음식 존재하지 않으면 N/A 설정
                 similar_foods = ",".join(similar_foods_list) if similar_foods_list else "N/A"
+                similar_food_pks = ",".join(similar_food_pks_list) if similar_food_pks_list else "N/A"
 
                 test_results.append([
                     f"{idx}-{j + 1}", # 1-1, 1-2 형식
@@ -103,7 +99,8 @@ for idx, image_file in enumerate(image_files, start=1):
                     analyze_time,
                     search_time,
                     detected,
-                    similar_foods
+                    similar_foods,
+                    similar_food_pks
                 ])
         else:
             print(f"API returned unexpected response: {response}")
@@ -114,7 +111,7 @@ for idx, image_file in enumerate(image_files, start=1):
         test_results.append([f"{idx}-1", read_food, 0, 0, 0, "ERROR", str(e)])
 
 # Dataframe 생성 및 저장
-columns = ["ORDER", "READ_FOOD", "ANALYZE_FOOD_IMAGE(sec)", "FOOD_IMAGE_ANALYZE(sec)", "SEARCH_SIMILAR(sec)", "DETECTED", "SIMILAR"]
+columns = ["ORDER", "READ_FOOD", "ANALYZE_FOOD_IMAGE(sec)", "FOOD_IMAGE_ANALYZE(sec)", "SEARCH_SIMILAR(sec)", "DETECTED", "SIMILAR", "SIMILAR_FOOD_PK"]
 df = pd.DataFrame(test_results, columns=columns)
 
 # 최종적으로 csv로 저장

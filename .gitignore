@@ -208,3 +208,13 @@ server/test/test_image
 
 # food.csv(대용량)
 server/data/food.csv
+
+# google api
+service_account.json
+
+# etl zip file
+lambda_function.zip
+python.zip
+
+# etl library
+dependency_check.txt

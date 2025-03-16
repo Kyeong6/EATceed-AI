@@ -7,31 +7,18 @@ load_dotenv()
 
 class Settings:
 
-    # Auth
-    JWT_SECRET = os.getenv("JWT_SECRET")
+    # Slack
+    SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
+    CHANNEL_ID = os.getenv("CHANNEL_ID")
 
-    # Decryption
-    ENCRYPTION_SECRET = os.getenv("ENCRYPTION_SECRET")
-
-    # Swagger
-    ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
-    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
-
-    # OpenAI
+    # OpenAI 
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
     # Upstage
     UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
 
-    # Claude
-    CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
-
-    # Data
-    DATA_PATH = os.getenv("DATA_PATH")
-    PROMPT_PATH = os.getenv("PROMPT_PATH")
-
-    # Log
-    LOG_PATH = os.getenv("LOG_PATH")
+    # Google API
+    API_FILE = os.getenv("API_FILE")
 
     # Pinecone
     PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
@@ -45,15 +32,6 @@ class Settings:
     RDS_PORT = os.getenv("RDS_PORT")
     RDS_DB_NAME = os.getenv("RDS_DB_NAME")
     DB_URL=f"mysql+pymysql://{RDS_DATABASE_USERNAME}:{RDS_DATABASE_PASSWORD}@{RDS_DATABASE_ENDPOINT}:{RDS_PORT}/{RDS_DB_NAME}?charset=utf8mb4"
-
-    # Redis
-    REDIS_HOST = os.getenv("REDIS_HOST")
-    REDIS_PORT = int(os.getenv("REDIS_PORT"))
-    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
-    RATE_LIMIT = int(os.getenv("RATE_LIMIT"))
-
-    # GCP
-    GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     
     
 settings = Settings()
