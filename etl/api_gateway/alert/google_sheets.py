@@ -7,7 +7,7 @@ logger = get_logger()
 
 # Sheet 연결
 gc = gspread.service_account(filename=settings.API_FILE)
-sh = gc.open("food_dataset")
+sh = gc.open("food_test")
 
 # Google Sheet 데이터 적재: 초기 적재상태(0)
 def insert_sheet_data(data):
@@ -56,29 +56,37 @@ def read_unchecked_data():
         headers = data[0]
         records = [dict(zip(headers, row)) for row in data[1:]]
 
-        # "적재 상태"가 0인 데이터만 조회
-        unprocessed_data = [
-            {
-                "식품코드": int(row["식품코드"]) if row["식품코드"].isdigit() else row["식품코드"],
-                "식품명": row["식품명"],
-                "식품대분류코드": int(row["식품대분류코드"]) if row["식품대분류코드"].isdigit() else row["식품대분류코드"],
-                "식품중량": float(row["식품중량"]),
-                "에너지(kcal)": float(row["에너지(kcal)"]),
-                "탄수화물(g)": float(row["탄수화물(g)"]),
-                "단백질(g)": float(row["단백질(g)"]),
-                "지방(g)": float(row["지방(g)"]),
-                "당류(g)": float(row["당류(g)"]),
-                "식이섬유(g)": float(row["식이섬유(g)"]),
-                "나트륨(mg)": float(row["나트륨(mg)"]),
-                "적재상태": row["적재상태"]
-            }
-            for row in records if row.get("적재 상태", "0").strip() == "0"
-        ]
+        # "적재상태" 컬럼을 확인 (띄어쓰기 문제)
+        status_column = "적재 상태" if "적재 상태" in headers else "적재상태"
+
+        # "적재상태"가 0인 데이터만 조회
+        unprocessed_data = []
+        for row in records:
+            try:
+                # "적재상태" 값을 정수로 변환 후 비교
+                status = int(row["적재상태"].strip()) if row["적재상태"].strip().isdigit() else 1
+                if status == 0:
+                    unprocessed_data.append({
+                        "식품코드": int(row["식품코드"]) if row["식품코드"].isdigit() else row["식품코드"],
+                        "식품명": row["식품명"],
+                        "식품대분류코드": int(row["식품대분류코드"]) if row["식품대분류코드"].isdigit() else row["식품대분류코드"],
+                        "식품중량": float(row["식품중량"]),
+                        "에너지(kcal)": float(row["에너지(kcal)"]),
+                        "탄수화물(g)": float(row["탄수화물(g)"]),
+                        "단백질(g)": float(row["단백질(g)"]),
+                        "지방(g)": float(row["지방(g)"]),
+                        "당류(g)": float(row["당류(g)"]),
+                        "식이섬유(g)": float(row["식이섬유(g)"]),
+                        "나트륨(mg)": float(row["나트륨(mg)"]),
+                        "적재상태": status
+                    })
+            except ValueError as e:
+                logger.warning(f"Google Sheets 데이터 변환 실패: {e}")
 
         return unprocessed_data
 
     except Exception as e:
-        logger.error(f"Google Sheets 데이터 읽기(초기 적재상태) 실패: {e}")
+        logger.error(f"Google Sheets 데이터 읽기 실패: {e}")
         return []
     
 # Google Sheets 데이터 변경: 적재상태 "1"로 변경

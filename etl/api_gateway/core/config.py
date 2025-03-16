@@ -7,10 +7,6 @@ load_dotenv()
 
 class Settings:
 
-    # Open API
-    API_URL = os.getenv("API_URL")
-    API_KEY = os.getenv("API_KEY")
-
     # Slack
     SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
     CHANNEL_ID = os.getenv("CHANNEL_ID")
