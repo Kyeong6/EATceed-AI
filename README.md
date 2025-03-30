@@ -20,6 +20,7 @@
 
 
 ### 화면 구성
+
 <div align="center">
   <div style="display:inline-block; margin: 0 10px;">
     <strong>홈 화면</strong><br/>
@@ -33,6 +34,11 @@
     <strong>식사 알림</strong><br/>
     <img src="https://github.com/user-attachments/assets/c39edb1c-8544-4a34-9048-19f9cfba93fe" width="180" height="320"/>
   </div>
+</div>
+
+<br/>
+
+<div align="center">
   <div style="display:inline-block; margin: 0 10px;">
     <strong>푸드렌즈</strong><br/>
     <img src="https://github.com/user-attachments/assets/60e4e278-b3ad-435c-9a8d-fd8ee9d55725" width="180" height="320"/>
@@ -48,9 +54,13 @@
 
 **푸드렌즈 (Food Lens)**
 
+<br/>
+
 <p align="center">
   <img src="https://github.com/user-attachments/assets/d2852543-d8f1-4fca-b543-22a9ed4ab73b" width="700" alt="<Food Lens Flow>"/>
 </p>
+
+<br/>
 
 - 사용자가 업로드한 음식 이미지를 GPT-4o를 통해 인식하고 음식명 자동 추출
 - Pinecone을 활용해 유사 음식명을 검색하고 상위 3개의 후보 반환
@@ -58,9 +68,13 @@
 
 **AI 영양사 (AI Nutritionist)**
 
+<br/>
+
 <p align="center">
   <img src="https://github.com/user-attachments/assets/c8bab371-92f3-4b9b-a69b-dba61b81bb9f" width="700" alt="<AI Nutritionist Flow>"/>
 </p>
+
+<br/>
 
 - 사용자의 신체 정보, 활동량, 최근 일주일 식단 기록을 기반으로 LangChain의 RAG 및 멀티 체인 구조를 활용해 리포트 생성
 - 리포트는 식습관 조언, 영양소 분석, 식사 개선점, 개인 맞춤 식단 추천으로 구성
