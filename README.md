@@ -18,37 +18,39 @@
 
 > 본 레포지토리는 EATceed 프로젝트 중 AI 기능(푸드렌즈, AI 영양사)을 개발·구현한 내용을 다룹니다.
 
+<br/>
 
 ### 화면 구성
 
-<div align="center">
-  <div style="display:inline-block; margin: 0 10px;">
-    <strong>홈 화면</strong><br/>
-    <img src="https://github.com/user-attachments/assets/875bbf63-9b86-4b0c-a77c-736a0f35a494" width="180" height="320"/>
-  </div>
-  <div style="display:inline-block; margin: 0 10px;">
-    <strong>캘린더</strong><br/>
-    <img src="https://github.com/user-attachments/assets/b2118fef-4fca-4abd-aa2e-89333202a1a1" width="180" height="320"/>
-  </div>
-  <div style="display:inline-block; margin: 0 10px;">
-    <strong>식사 알림</strong><br/>
-    <img src="https://github.com/user-attachments/assets/c39edb1c-8544-4a34-9048-19f9cfba93fe" width="180" height="320"/>
-  </div>
-</div>
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/875bbf63-9b86-4b0c-a77c-736a0f35a494" width="180" /><br/>
+      <strong>홈 화면</strong>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/b2118fef-4fca-4abd-aa2e-89333202a1a1" width="180" /><br/>
+      <strong>캘린더</strong>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/c39edb1c-8544-4a34-9048-19f9cfba93fe" width="180" /><br/>
+      <strong>식사 알림</strong>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/60e4e278-b3ad-435c-9a8d-fd8ee9d55725" width="180" /><br/>
+      <strong>푸드렌즈</strong>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/b41ce362-2898-4b3e-90d1-25f6df07b89d" width="180" /><br/>
+      <strong>AI 영양사</strong>
+    </td>
+    <td></td>
+  </tr>
+</table>
 
 <br/>
-
-<div align="center">
-  <div style="display:inline-block; margin: 0 10px;">
-    <strong>푸드렌즈</strong><br/>
-    <img src="https://github.com/user-attachments/assets/60e4e278-b3ad-435c-9a8d-fd8ee9d55725" width="180" height="320"/>
-  </div>
-  <div style="display:inline-block; margin: 0 10px;">
-    <strong>AI 영양사</strong><br/>
-    <img src="https://github.com/user-attachments/assets/b41ce362-2898-4b3e-90d1-25f6df07b89d" width="180" height="320"/>
-  </div>
-</div>
-
 
 ### AI 기능
 
@@ -79,6 +81,7 @@
 - 사용자의 신체 정보, 활동량, 최근 일주일 식단 기록을 기반으로 LangChain의 RAG 및 멀티 체인 구조를 활용해 리포트 생성
 - 리포트는 식습관 조언, 영양소 분석, 식사 개선점, 개인 맞춤 식단 추천으로 구성
 
+<br/>
 
 ## 기술 스택
 ### AI
@@ -110,15 +113,19 @@
   <img src="https://github.com/user-attachments/assets/603e0c49-4591-4b8c-983a-1328c454da93" width="70" style="margin:10px;" title="Notion"/>
 </p>
 
+<br/>
+
 ## 시스템 아키텍처
 
 ### 전체 아키텍처
 <img width="1000" alt="Image" src="https://github.com/user-attachments/assets/d013fc64-3b3a-4354-83a9-50a4117ae629">
 
+<br/>
 
 ### 데이터 파이프라인 아키텍처
 <img width="1000" alt="Image" src="https://github.com/user-attachments/assets/6230406e-94cd-414e-9492-428f2c0a46c8">
 
+<br/>
 
 ## 기술적 이슈와 해결 과정
 
